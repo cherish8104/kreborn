@@ -1,0 +1,43 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* K-REBORN Global Overrides */
+:root {
+  --background: #0a0a0a;
+  --foreground: #f5f0e8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background-color: #050505;
+  color: #f5f0e8;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Mobile-only: disable text size adjustment */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Prevent horizontal scroll */
+  overflow-x: hidden;
+}
+
+/* Safe area insets for modern iOS */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: rgba(201,169,110,0.25); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(201,169,110,0.5); }
+
+/* Input / Select base reset for dark theme */
+input, select, textarea {
+  color-scheme: dark;
+}
+select option {
+  background: #161410;
+  color: #f5f0e8;
+}
