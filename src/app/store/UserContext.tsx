@@ -10,6 +10,7 @@ export interface UserInput {
   gender: 'male' | 'female';
   nationality: string;
   email: string;
+  isLunar: boolean;
 }
 
 interface AppState {
@@ -42,12 +43,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const setUserInput = (input: UserInput) => {
     setUserInputState(input);
-    try { sessionStorage.setItem('kreborn_input', JSON.stringify(input)); } catch {}
+    try { sessionStorage.setItem('kreborn_input', JSON.stringify(input)); } catch { }
   };
 
   const setIdentity = (id: KoreanIdentity) => {
     setIdentityState(id);
-    try { sessionStorage.setItem('kreborn_identity', JSON.stringify(id)); } catch {}
+    try { sessionStorage.setItem('kreborn_identity', JSON.stringify(id)); } catch { }
   };
 
   const setIsPaid = (paid: boolean) => setIsPaidState(paid);

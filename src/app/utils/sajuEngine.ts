@@ -1,22 +1,24 @@
 // ─────────────────────────────────────────────────────────────────
 //  K-REBORN  ·  Saju Engine  (사주 팔자 분석 엔진)
 // ─────────────────────────────────────────────────────────────────
+import { Solar, Lunar } from 'lunar-javascript';
 
 export type ElementEn = 'wood' | 'fire' | 'earth' | 'metal' | 'water';
 
 // ── Heavenly Stems (천간) ─────────────────────────────────────────
-const STEMS      = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
-const STEMS_KR   = ['갑','을','병','정','무','기','경','신','임','계'];
+const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+const STEMS_KR = ['갑', '을', '병', '정', '무', '기', '경', '신', '임', '계'];
 
 // ── Earthly Branches (지지) ──────────────────────────────────────
-const BRANCHES         = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
-const BRANCHES_KR      = ['자','축','인','묘','진','사','오','미','신','유','술','해'];
+const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+const BRANCHES_KR = ['자', '축', '인', '묘', '진', '사', '오', '미', '신', '유', '술', '해'];
 
 // ── Five-Element mappings ───────────────────────────────��─────────
-const STEM_EL_CHAR: string[]   = ['木','木','火','火','土','土','金','金','水','水'];
-const STEM_EL_EN: ElementEn[]  = ['wood','wood','fire','fire','earth','earth','metal','metal','water','water'];
-const BR_EL_CHAR: string[]     = ['水','土','木','木','土','火','火','土','金','金','土','水'];
-const BR_EL_EN: ElementEn[]    = ['water','earth','wood','wood','earth','fire','fire','earth','metal','metal','earth','water'];
+const STEM_EL_CHAR: string[] = ['木', '木', '火', '火', '土', '土', '金', '金', '水', '水'];
+const STEM_EL_EN: ElementEn[] = ['wood', 'wood', 'fire', 'fire', 'earth', 'earth', 'metal', 'metal', 'water', 'water'];
+const BR_EL_CHAR: string[] = ['水', '土', '木', '木', '土', '火', '火', '土', '金', '金', '土', '水'];
+const BR_EL_EN: ElementEn[] = ['water', 'earth', 'wood', 'wood', 'earth', 'fire', 'fire', 'earth', 'metal', 'metal', 'earth', 'water'];
+const BR_ANIMAL_EMOJI: string[] = ['🐀', '🐂', '🐅', '🐇', '🐉', '🐍', '🐴', '🐑', '🐒', '🐓', '🐕', '🐗'];
 
 // ── Types ─────────────────────────────────────────────────────────
 export interface Pillar {
@@ -24,6 +26,7 @@ export interface Pillar {
   branch: string; branchKr: string;
   stemEl: string; branchEl: string;
   stemElEn: ElementEn; branchElEn: ElementEn;
+  branchAnimalEmoji?: string;
 }
 
 export interface SajuData {
@@ -32,6 +35,7 @@ export interface SajuData {
   dominantElement: ElementEn;
   lackingElement: ElementEn;
   dayMasterIndex: number;
+  isLunar?: boolean;
 }
 
 export interface NeighborhoodInfo {
@@ -64,30 +68,50 @@ export interface KoreanIdentity {
 
 // ── Career by Day Master (일간) ───────────────────────────────────
 const CAREER_MAP = [
-  { en: 'Creative Director', kr: '크리에이티브 디렉터',
-    desc: '甲木의 개척 정신으로, 당신은 스튜디오와 문화 브랜드를 이끄는 리더로 태어났습니다. 타인이 보지 못하는 미래를 먼저 보는 비저너리. Korea\'s creative scene was waiting for you.' },
-  { en: 'Artist & Florist', kr: '아티스트 / 플로리스트',
-    desc: '乙木처럼 유연하고 아름다운 당신. 한국의 예술계와 플로럴 인더스트리는 당신의 섬세한 터치로 꽃피울 것입니다. Adaptability is your superpower.' },
-  { en: 'Media Personality', kr: '방송인 / 마케터',
-    desc: '丙火의 카리스마로 스크린을 밝히는 당신. 방송인, 브랜드 스트래티지스트로서 대중의 마음을 움직이는 따뜻한 힘을 가졌습니다.' },
-  { en: 'Beauty Artist & Designer', kr: '뷰티 아티스트 / 디자이너',
-    desc: '丁火의 집중된 예술혼. 한국의 K-뷰티 산업은 당신의 정밀한 미적 감각을 위해 존재합니다. Refinement is your medium.' },
-  { en: 'Architect & Entrepreneur', kr: '건축가 / 사업가',
-    desc: '戊土, 산처럼 웅장하고 흔들리지 않는 당신. 서울의 스카이라인을 바꿀 건물, 세대를 이어갈 기업을 세울 운명입니다.' },
-  { en: 'Educator & Counselor', kr: '교육자 / 상담사',
-    desc: '己土, 비옥한 토지처럼 사람을 키우는 당신. 교실에서, 코칭에서, 상담실에서 — 당신이 닿은 곳마다 성장이 일어납니다.' },
-  { en: 'Legal Expert & Finance', kr: '법조인 / 금융 전문가',
-    desc: '庚金, 단련된 강철. 한국의 최고 로펌과 금융기관은 당신의 날카로운 판단력과 흔들리지 않는 원칙을 기다립니다.' },
-  { en: 'Doctor & Jewelry Designer', kr: '의사 / 주얼리 디자이너',
-    desc: '辛金, 연마된 보석. 몸을 치유하거나 착용 가능한 예술을 창조하거나 — 당신은 과학과 아름다움의 교차점에서 일합니다.' },
-  { en: 'IT Developer & Author', kr: 'IT 개발자 / 작가',
-    desc: '壬水, 끝없이 흐르는 지성. 한국의 테크 씬 또는 독자의 내면을 흔드는 소설. 깊이가 당신의 언어입니다.' },
-  { en: 'Researcher & Philosopher', kr: '연구자 / 철학자',
-    desc: '癸水, 고요하고 깊은 호수. 학계의 브레이크스루, 또는 한국이 생각하는 방식을 바꿀 철학적 사유. 통찰이 당신의 소명입니다.' },
+  {
+    en: 'Creative Director', kr: '크리에이티브 디렉터',
+    desc: '甲木의 개척 정신으로, 당신은 스튜디오와 문화 브랜드를 이끄는 리더로 태어났습니다. 타인이 보지 못하는 미래를 먼저 보는 비저너리. Korea\'s creative scene was waiting for you.'
+  },
+  {
+    en: 'Artist & Florist', kr: '아티스트 / 플로리스트',
+    desc: '乙木처럼 유연하고 아름다운 당신. 한국의 예술계와 플로럴 인더스트리는 당신의 섬세한 터치로 꽃피울 것입니다. Adaptability is your superpower.'
+  },
+  {
+    en: 'Media Personality', kr: '방송인 / 마케터',
+    desc: '丙火의 카리스마로 스크린을 밝히는 당신. 방송인, 브랜드 스트래티지스트로서 대중의 마음을 움직이는 따뜻한 힘을 가졌습니다.'
+  },
+  {
+    en: 'Beauty Artist & Designer', kr: '뷰티 아티스트 / 디자이너',
+    desc: '丁火의 집중된 예술혼. 한국의 K-뷰티 산업은 당신의 정밀한 미적 감각을 위해 존재합니다. Refinement is your medium.'
+  },
+  {
+    en: 'Architect & Entrepreneur', kr: '건축가 / 사업가',
+    desc: '戊土, 산처럼 웅장하고 흔들리지 않는 당신. 서울의 스카이라인을 바꿀 건물, 세대를 이어갈 기업을 세울 운명입니다.'
+  },
+  {
+    en: 'Educator & Counselor', kr: '교육자 / 상담사',
+    desc: '己土, 비옥한 토지처럼 사람을 키우는 당신. 교실에서, 코칭에서, 상담실에서 — 당신이 닿은 곳마다 성장이 일어납니다.'
+  },
+  {
+    en: 'Legal Expert & Finance', kr: '법조인 / 금융 전문가',
+    desc: '庚金, 단련된 강철. 한국의 최고 로펌과 금융기관은 당신의 날카로운 판단력과 흔들리지 않는 원칙을 기다립니다.'
+  },
+  {
+    en: 'Doctor & Jewelry Designer', kr: '의사 / 주얼리 디자이너',
+    desc: '辛金, 연마된 보석. 몸을 치유하거나 착용 가능한 예술을 창조하거나 — 당신은 과학과 아름다움의 교차점에서 일합니다.'
+  },
+  {
+    en: 'IT Developer & Author', kr: 'IT 개발자 / 작가',
+    desc: '壬水, 끝없이 흐르는 지성. 한국의 테크 씬 또는 독자의 내면을 흔드는 소설. 깊이가 당신의 언어입니다.'
+  },
+  {
+    en: 'Researcher & Philosopher', kr: '연구자 / 철학자',
+    desc: '癸水, 고요하고 깊은 호수. 학계의 브레이크스루, 또는 한국이 생각하는 방식을 바꿀 철학적 사유. 통찰이 당신의 소명입니다.'
+  },
 ];
 
 // ── Neighborhoods by dominant element ────────────────────────────
-const NEIGHBORHOOD_MAP: Record<ElementEn, NeighborhoodInfo> = {
+export const NEIGHBORHOOD_MAP: Record<ElementEn, NeighborhoodInfo> = {
   wood: {
     name: 'Hongdae', nameKr: '홍대 · 홍익대학교 앞',
     description: '한국 청년 문화와 창조성의 심장. 벽화, 독립 갤러리, 라이브 뮤직, 아방가르드 카페 속에서 당신의 木 기운이 자유롭게 피어납니다.',
@@ -115,113 +139,127 @@ const NEIGHBORHOOD_MAP: Record<ElementEn, NeighborhoodInfo> = {
   },
 };
 
-// ── Name Database by element & gender ────────────────────────────
-type NameEntry = { surname: string; given: string; romanized: string; meaning: string };
+// ── Name Database (Surnames & Given Names separated) ────────────────────
+const SURNAMES = [
+  { char: '김', romanized: 'Kim', meaning: '"황금, 빛나는 고귀함" — 금(金)을 상징' },
+  { char: '이', romanized: 'Lee', meaning: '"오얏나무, 인내와 결실" — 자두 나무의 강인함' },
+  { char: '박', romanized: 'Park', meaning: '"밝고 관대한" — 둥근 우주와 밝은 빛' },
+  { char: '최', romanized: 'Choi', meaning: '"높은 산, 흔들리지 않는" — 가장 높은 정상' },
+  { char: '정', romanized: 'Jung', meaning: '"고요하고 바른" — 깊고 고요한 안정감' },
+  { char: '강', romanized: 'Kang', meaning: '"편안한 강줄기" — 생명에게 물을 내어주는 강' },
+  { char: '조', romanized: 'Jo', meaning: '"새로운 아침" — 세상을 깨우는 첫 햇살' },
+  { char: '윤', romanized: 'Yun', meaning: '"조화와 윤택함" — 만물을 기르는 윤택한 땅' },
+  { char: '장', romanized: 'Jang', meaning: '"크게 확장하는" — 넓은 세상을 향해 뻗어가는 기상' },
+  { char: '임', romanized: 'Lim', meaning: '"수풀, 생명의 터전" — 나무가 우거진 깊은 숲' }
+];
 
-const NAME_DB: Record<ElementEn, { female: NameEntry[]; male: NameEntry[] }> = {
+type GivenNameEntry = { given: string; romanized: string; meaning: string };
+
+const GIVEN_NAME_DB: Record<ElementEn, { female: GivenNameEntry[]; male: GivenNameEntry[] }> = {
   wood: {
     female: [
-      { surname:'이', given:'가람', romanized:'Ka-ram Lee', meaning:'"아름다운 흐르는 강" — 가람은 강의 순수한 우리말. 생명을 주는 은혜의 상징.' },
-      { surname:'박', given:'지원', romanized:'Ji-won Park', meaning:'"지혜를 향한 열망" — 지(志)는 원대한 뜻, 원(願)은 가장 높은 진리를 향한 간절한 소망.' },
-      { surname:'김', given:'나린', romanized:'Na-rin Kim', meaning:'"우아한 비상" — 아침 안개를 가르며 날아오르는 학의 고요한 우아함에서 영감을 얻은 이름.' },
-      { surname:'최', given:'가현', romanized:'Ka-hyeon Choi', meaning:'"꽃피는 지혜" — 가(佳)는 빛나는 아름다움, 현(賢)은 숲 천장처럼 자라나는 지혜를 담고 있습니다.' },
-      { surname:'정', given:'하린', romanized:'Ha-rin Jung', meaning:'"맑은 숲의 빛" — 고대 나무를 통해 스며드는 햇빛처럼 명확함과 방향을 가져다주는 사람.' },
+      { given: '가람', romanized: 'Ka-ram', meaning: '"아름다운 흐르는 강" — 가람은 강의 순수한 우리말. 생명을 주는 은혜의 상징.' },
+      { given: '지원', romanized: 'Ji-won', meaning: '"지혜를 향한 열망" — 지(志)는 원대한 뜻, 원(願)은 가장 높은 진리를 향한 간절한 소망.' },
+      { given: '나린', romanized: 'Na-rin', meaning: '"우아한 비상" — 아침 안개를 가르며 날아오르는 학의 고요한 우아함에서 영감을 얻은 이름.' },
+      { given: '가현', romanized: 'Ka-hyeon', meaning: '"꽃피는 지혜" — 가(佳)는 빛나는 아름다움, 현(賢)은 숲 천장처럼 자라나는 지혜를 담고 있습니다.' },
+      { given: '하린', romanized: 'Ha-rin', meaning: '"맑은 숲의 빛" — 고대 나무를 통해 스며드는 햇빛처럼 명확함과 방향을 가져다주는 사람.' },
     ],
     male: [
-      { surname:'이', given:'준서', romanized:'Jun-seo Lee', meaning:'"동쪽 빛의 선도자" — 준(俊)은 탁월한 명석함, 서(書)는 지식의 불후의 유산을 상징합니다.' },
-      { surname:'박', given:'지훈', romanized:'Ji-hun Park', meaning:'"지혜롭고 웅장함" — 내면의 지혜의 숲이 타인에게 빛을 발하는 길잡이 봉화가 되는 이름.' },
-      { surname:'김', given:'가온', romanized:'Ka-on Kim', meaning:'"아름다움의 중심" — 가온은 "중심"을 뜻하는 우리말. 모든 생명 에너지가 모이는 곳.' },
-      { surname:'최', given:'도현', romanized:'Do-hyeon Choi', meaning:'"상승하는 탁월함" — 도(道)는 위대한 지혜의 길, 현(賢)은 그 빛나는 발현입니다.' },
-      { surname:'강', given:'지호', romanized:'Ji-ho Kang', meaning:'"지혜의 호수" — 깊이와 고요함이 공존하는 곳, 그 경계에서 세상을 비추는 사람.' },
+      { given: '준서', romanized: 'Jun-seo', meaning: '"동쪽 빛의 선도자" — 준(俊)은 탁월한 명석함, 서(書)는 지식의 불후의 유산을 상징합니다.' },
+      { given: '지훈', romanized: 'Ji-hun', meaning: '"지혜롭고 웅장함" — 내면의 지혜의 숲이 타인에게 빛을 발하는 길잡이 봉화가 되는 이름.' },
+      { given: '가온', romanized: 'Ka-on', meaning: '"아름다움의 중심" — 가온은 "중심"을 뜻하는 우리말. 모든 생명 에너지가 모이는 곳.' },
+      { given: '도현', romanized: 'Do-hyeon', meaning: '"상승하는 탁월함" — 도(道)는 위대한 지혜의 길, 현(賢)은 그 빛나는 발현입니다.' },
+      { given: '지호', romanized: 'Ji-ho', meaning: '"지혜의 호수" — 깊이와 고요함이 공존하는 곳, 그 경계에서 세상을 비추는 사람.' },
     ],
   },
   fire: {
     female: [
-      { surname:'이', given:'다인', romanized:'Da-in Lee', meaning:'"빛나는 인자함" — 다(多)는 풍요, 인(仁)은 유교의 덕목. 아낌없이 베푸는 따뜻함.' },
-      { surname:'박', given:'나은', romanized:'Na-eun Park', meaning:'"부드럽고 아름다운 온기" — 밤을 녹이는 새벽빛처럼 조용하고 세심한 돌봄으로 다가오는 이름.' },
-      { surname:'김', given:'도아', romanized:'Do-a Kim', meaning:'"새벽 경계의 우아함" — 도(道)와 아(雅)가 만나, 첫 빛에 비춰진 세련된 아름다움을 만들어냅니다.' },
-      { surname:'최', given:'리나', romanized:'Ri-na Choi', meaning:'"빛나고 온화함" — 리(麗)는 찬란한 아름다움, 나(那)는 영원하고 고요한 우아함을 담고 있습니다.' },
-      { surname:'정', given:'다연', romanized:'Da-yeon Jung', meaning:'"풍요롭고 아름다움" — 결코 줄어들지 않는 불꽃처럼, 이 이름은 무한한 광채를 구현합니다.' },
+      { given: '다인', romanized: 'Da-in', meaning: '"빛나는 인자함" — 다(多)는 풍요, 인(仁)은 유교의 덕목. 아낌없이 베푸는 따뜻함.' },
+      { given: '나은', romanized: 'Na-eun', meaning: '"부드럽고 아름다운 온기" — 밤을 녹이는 새벽빛처럼 조용하고 세심한 돌봄으로 다가오는 이름.' },
+      { given: '도아', romanized: 'Do-a', meaning: '"새벽 경계의 우아함" — 도(道)와 아(雅)가 만나, 첫 빛에 비춰진 세련된 아름다움을 만들어냅니다.' },
+      { given: '리나', romanized: 'Ri-na', meaning: '"빛나고 온화함" — 리(麗)는 찬란한 아름다움, 나(那)는 영원하고 고요한 우아함을 담고 있습니다.' },
+      { given: '다연', romanized: 'Da-yeon', meaning: '"풍요롭고 아름다움" — 결코 줄어들지 않는 불꽃처럼, 이 이름은 무한한 광채를 구현합니다.' },
     ],
     male: [
-      { surname:'이', given:'도윤', romanized:'Do-yun Lee', meaning:'"인도하는 빛" — 도(道)는 빛나는 길, 윤(允)은 당신의 불꽃이 타인을 진실로 이끌 것이라는 약속.' },
-      { surname:'박', given:'나훈', romanized:'Na-hun Park', meaning:'"따뜻하고 웅장한 광채" — 가장 강렬한 대낮의 태양 에너지를 담은 이름.' },
-      { surname:'김', given:'리한', romanized:'Ri-han Kim', meaning:'"날카로운 깨달음" — 먹구름을 뚫고 갑자기 쏟아지는 햇빛처럼 혼란을 정리하는 사람.' },
-      { surname:'최', given:'단아', romanized:'Dan-a Choi', meaning:'"순수하고 우아한 불꽃" — 단(端)은 곧은 덕, 아(雅)는 강렬한 불을 통해 정제된 미적 우아함.' },
-      { surname:'강', given:'민준', romanized:'Min-jun Kang', meaning:'"밝고 예리한 광채" — 지성이 방을 밝히고, 야망이 고귀한 목적으로 타오르는 사람.' },
+      { given: '도윤', romanized: 'Do-yun', meaning: '"인도하는 빛" — 도(道)는 빛나는 길, 윤(允)은 당신의 불꽃이 타인을 진실로 이끌 것이라는 약속.' },
+      { given: '나훈', romanized: 'Na-hun', meaning: '"따뜻하고 웅장한 광채" — 가장 강렬한 대낮의 태양 에너지를 담은 이름.' },
+      { given: '리한', romanized: 'Ri-han', meaning: '"날카로운 깨달음" — 먹구름을 뚫고 갑자기 쏟아지는 햇빛처럼 혼란을 정리하는 사람.' },
+      { given: '단아', romanized: 'Dan-a', meaning: '"순수하고 우아한 불꽃" — 단(端)은 곧은 덕, 아(雅)는 강렬한 불을 통해 정제된 미적 우아함.' },
+      { given: '민준', romanized: 'Min-jun', meaning: '"밝고 예리한 광채" — 지성이 방을 밝히고, 야망이 고귀한 목적으로 타오르는 사람.' },
     ],
   },
   earth: {
     female: [
-      { surname:'이', given:'아인', romanized:'A-in Lee', meaning:'"평화로운 지혜" — 아(雅)는 고요함과 우아함, 인(仁)은 모든 생명에 대한 깊이 뿌리내린 연민.' },
-      { surname:'박', given:'하은', romanized:'Ha-eun Park', meaning:'"하늘로부터 내리는 깊은 축복" — 하(河)는 깊이, 은(恩)은 비가 비옥한 땅을 적시듯 흐르는 은혜.' },
-      { surname:'김', given:'아영', romanized:'A-young Kim', meaning:'"영원한 봄의 은혜" — 아(雅)는 시대를 초월한 우아함, 영(英)은 덕 속에 깊이 뿌리내린 찬란한 꽃.' },
-      { surname:'최', given:'하린', romanized:'Ha-rin Choi', meaning:'"온화하고 뿌리내린 빛" — 따스한 안정감이 땅만큼이나 믿음직스럽고 영양분을 주는 사람.' },
-      { surname:'정', given:'아름', romanized:'A-reum Jung', meaning:'"아름다움 그 자체" — 아름은 "아름다운"을 뜻하는 우리말. 한 숨 속에 담긴 시.' },
+      { given: '아인', romanized: 'A-in', meaning: '"평화로운 지혜" — 아(雅)는 고요함과 우아함, 인(仁)은 모든 생명에 대한 깊이 뿌리내린 연민.' },
+      { given: '하은', romanized: 'Ha-eun', meaning: '"하늘로부터 내리는 깊은 축복" — 하(河)는 깊이, 은(恩)은 비가 비옥한 땅을 적시듯 흐르는 은혜.' },
+      { given: '아영', romanized: 'A-young', meaning: '"영원한 봄의 은혜" — 아(雅)는 시대를 초월한 우아함, 영(英)은 덕 속에 깊이 뿌리내린 찬란한 꽃.' },
+      { given: '하린', romanized: 'Ha-rin', meaning: '"온화하고 뿌리내린 빛" — 따스한 안정감이 땅만큼이나 믿음직스럽고 영양분을 주는 사람.' },
+      { given: '아름', romanized: 'A-reum', meaning: '"아름다움 그 자체" — 아름은 "아름다운"을 뜻하는 우리말. 한 숨 속에 담긴 시.' },
     ],
     male: [
-      { surname:'이', given:'하준', romanized:'Ha-jun Lee', meaning:'"고귀하고 뿌리내린 기초" — 하(河)는 깊이 흐르고, 준(俊)은 높이 솟는다: 안정적이면서도 탁월한 사람.' },
-      { surname:'박', given:'영준', romanized:'Young-jun Park', meaning:'"영원한 탁월함의 기둥" — 영(英)은 영원히 꽃피고, 준(俊)은 타인이 의지하는 기둥으로 서 있습니다.' },
-      { surname:'김', given:'태양', romanized:'Tae-yang Kim', meaning:'"위대한 태양" — 태(太)는 궁극의 장엄함, 양(陽)은 태양 에너지: 거대한 생명력을 담은 이름.' },
-      { surname:'최', given:'현준', romanized:'Hyun-jun Choi', meaning:'"지혜롭고 우뚝 솟음" — 대지의 지혜가 기초가 되어 타인이 그 위에 세계를 세우는 사람.' },
-      { surname:'강', given:'흥민', romanized:'Heung-min Kang', meaning:'"사람들의 기운을 높이는" — 흥(興)은 에너지와 기쁨의 상승, 민(民)은 이 사람이 끌어올리는 집단의 마음.' },
+      { given: '하준', romanized: 'Ha-jun', meaning: '"고귀하고 뿌리내린 기초" — 하(河)는 깊이 흐르고, 준(俊)은 높이 솟는다: 안정적이면서도 탁월한 사람.' },
+      { given: '영준', romanized: 'Young-jun', meaning: '"영원한 탁월함의 기둥" — 영(英)은 영원히 꽃피고, 준(俊)은 타인이 의지하는 기둥으로 서 있습니다.' },
+      { given: '태양', romanized: 'Tae-yang', meaning: '"위대한 태양" — 태(太)는 궁극의 장엄함, 양(陽)은 태양 에너지: 거대한 생명력을 담은 이름.' },
+      { given: '현준', romanized: 'Hyun-jun', meaning: '"지혜롭고 우뚝 솟음" — 대지의 지혜가 기초가 되어 타인이 그 위에 세계를 세우는 사람.' },
+      { given: '흥민', romanized: 'Heung-min', meaning: '"사람들의 기운을 높이는" — 흥(興)은 에너지와 기쁨의 상승, 민(民)은 이 사람이 끌어올리는 집단의 마음.' },
     ],
   },
   metal: {
     female: [
-      { surname:'이', given:'서연', romanized:'Seo-yeon Lee', meaning:'"서쪽의 우아함" — 서(西)는 金의 방향이 지닌 세련된 미, 연(蓮)은 순수함 속에 피어나는 연꽃.' },
-      { surname:'박', given:'재희', romanized:'Jae-hee Park', meaning:'"귀중한 기쁨" — 재(才)는 희귀한 재능, 희(喜)는 흠 없고 진실한 순수한 형태로 증류된 기쁨.' },
-      { surname:'김', given:'서아', romanized:'Seo-a Kim', meaning:'"순수한 아침의 명료함" — 하늘이 연마된 은처럼 맑고 선명할 때의 새벽빛의 질감.' },
-      { surname:'최', given:'지안', romanized:'Ji-an Choi', meaning:'"고요한 평온" — 지(知)는 깊이 아는 것, 안(安)은 그로부터 오는 평화: 모든 것의 중심에 있는 고요.' },
-      { surname:'정', given:'수아', romanized:'Su-a Jung', meaning:'"우아하고 순수함" — 돌릴 때마다 새로운 빛의 면을 드러내는 완벽하게 연마된 보석처럼.' },
+      { given: '서연', romanized: 'Seo-yeon', meaning: '"서쪽의 우아함" — 서(西)는 金의 방향이 지닌 세련된 미, 연(蓮)은 순수함 속에 피어나는 연꽃.' },
+      { given: '재희', romanized: 'Jae-hee', meaning: '"귀중한 기쁨" — 재(才)는 희귀한 재능, 희(喜)는 흠 없고 진실한 순수한 형태로 증류된 기쁨.' },
+      { given: '서아', romanized: 'Seo-a', meaning: '"순수한 아침의 명료함" — 하늘이 연마된 은처럼 맑고 선명할 때의 새벽빛의 질감.' },
+      { given: '지안', romanized: 'Ji-an', meaning: '"고요한 평온" — 지(知)는 깊이 아는 것, 안(안)은 그로부터 오는 평화: 모든 것의 중심에 있는 고요.' },
+      { given: '수아', romanized: 'Su-a', meaning: '"우아하고 순수함" — 돌릴 때마다 새로운 빛의 면을 드러내는 완벽하게 연마된 보석처럼.' },
     ],
     male: [
-      { surname:'이', given:'서준', romanized:'Seo-jun Lee', meaning:'"서쪽의 우아한 기둥" — 서(書)는 학문의 전통, 준(俊)은 그것을 존중하고 발전시키는 탁월한 정신.' },
-      { surname:'박', given:'재원', romanized:'Jae-won Park', meaning:'"귀중한 원천" — 재(才)는 탁월한 능력, 원(源)은 위대한 것이 흘러나오는 최초의 샘.' },
-      { surname:'김', given:'진서', romanized:'Jin-seo Kim', meaning:'"진정한 학자" — 진(眞)은 절대적인 진정성, 서(書)는 金이 목소리를 내는 문자에 대한 사랑과 정밀함.' },
-      { surname:'최', given:'서진', romanized:'Seo-jin Choi', meaning:'"순수하고 전진함" — 서(西)는 金의 방향, 진(進)은 장애물을 뚫고 나아가는 사람의 전진 움직임.' },
-      { surname:'강', given:'준혁', romanized:'Jun-hyuk Kang', meaning:'"탁월하고 빛나는" — 준(俊)은 탁월함, 혁(赫)은 연마된 금속이 발하는 찬란한 광채.' },
+      { given: '서준', romanized: 'Seo-jun', meaning: '"서쪽의 우아한 기둥" — 서(書)는 학문의 전통, 준(俊)은 그것을 존중하고 발전시키는 탁월한 정신.' },
+      { given: '재원', romanized: 'Jae-won', meaning: '"귀중한 원천" — 재(才)는 탁월한 능력, 원(源)은 위대한 것이 흘러나오는 최초의 샘.' },
+      { given: '진서', romanized: 'Jin-seo', meaning: '"진정한 학자" — 진(眞)은 절대적인 진정성, 서(書)는 金이 목소리를 내는 문자에 대한 사랑과 정밀함.' },
+      { given: '서진', romanized: 'Seo-jin', meaning: '"순수하고 전진함" — 서(西)는 金의 방향, 진(進)은 장애물을 뚫고 나아가는 사람의 전진 움직임.' },
+      { given: '준혁', romanized: 'Jun-hyuk', meaning: '"탁월하고 빛나는" — 준(俊)은 탁월함, 혁(赫)은 연마된 금속이 발하는 찬란한 광채.' },
     ],
   },
   water: {
     female: [
-      { surname:'이', given:'민주', romanized:'Min-ju Lee', meaning:'"깊은 곳의 온화한 진주" — 민(珉)은 아름다운 옥 같은 돌, 주(珠)는 귀중한 진주: 보물이 되는 깊이.' },
-      { surname:'박', given:'서윤', romanized:'Seo-yun Park', meaning:'"흐르는 서쪽의 우아함" — 다양한 분위기의 풍경을 지나 인내롭고 아름다운 길을 찾는 강처럼.' },
-      { surname:'김', given:'민아', romanized:'Min-a Kim', meaning:'"깊고 아름다움" — 민(岷)은 높은 산의 원천, 아(雅)는 그 높이에서 흐르는 물의 우아함.' },
-      { surname:'최', given:'수연', romanized:'Su-yeon Choi', meaning:'"우아한 물" — 수(水)는 물 자체, 연(蓮)은 오직 그 아래의 깊이 때문에 피어나는 연꽃.' },
-      { surname:'정', given:'하은', romanized:'Ha-eun Jung', meaning:'"축복의 강" — 하(河)는 위대한 강, 은(恩)은 그것이 지나가는 모든 곳에 가져다주는 은혜.' },
+      { given: '민주', romanized: 'Min-ju', meaning: '"깊은 곳의 온화한 진주" — 민(珉)은 아름다운 옥 같은 돌, 주(珠)는 귀중한 진주: 보물이 되는 깊이.' },
+      { given: '서윤', romanized: 'Seo-yun', meaning: '"흐르는 서쪽의 우아함" — 다양한 분위기의 풍경을 지나 인내롭고 아름다운 길을 찾는 강처럼.' },
+      { given: '민아', romanized: 'Min-a', meaning: '"깊고 아름다움" — 민(岷)은 높은 산의 원천, 아(雅)는 그 높이에서 흐르는 물의 우아함.' },
+      { given: '수연', romanized: 'Su-yeon', meaning: '"우아한 물" — 수(水)는 물 자체, 연(蓮)은 오직 그 아래의 깊이 때문에 피어나는 연꽃.' },
+      { given: '하은', romanized: 'Ha-eun', meaning: '"축복의 강" — 하(河)는 위대한 강, 은(恩)은 그것이 지나가는 모든 곳에 가져다주는 은혜.' },
     ],
     male: [
-      { surname:'이', given:'민준', romanized:'Min-jun Lee', meaning:'"깊은 지혜" — 민(敏)은 물처럼 흐르는 날카로운 지성, 준(俊)은 그 지성이 세상에서 취하는 탁월한 형태.' },
-      { surname:'박', given:'민서', romanized:'Min-seo Park', meaning:'"맑은 학자" — 민(珉)은 귀중하고 투명함, 서(書)는 강이 생명을 운반하듯 담겨진 지혜.' },
-      { surname:'김', given:'현우', romanized:'Hyun-woo Kim', meaning:'"깊은 비" — 현(玄)은 신비로운 깊이, 우(雨)는 변화를 가져오기 위해 먹구름에서 내리는 비.' },
-      { surname:'정', given:'수호', romanized:'Su-ho Jung', meaning:'"지키는 흐름" — 수(守)는 수호, 호(浩)는 깊은 물의 힘으로 보호하는 사람의 광대한 영역.' },
-      { surname:'강', given:'민재', romanized:'Min-jae Kang', meaning:'"깊고 재능 있는" — 민(敏)은 水의 예리한 지성으로 흐르고, 재(才)는 그것이 형성하고 앞으로 나아가는 탁월한 재능.' },
+      { given: '민준', romanized: 'Min-jun', meaning: '"깊은 지혜" — 민(敏)은 물처럼 흐르는 날카로운 지성, 준(俊)은 그 지성이 세상에서 취하는 탁월한 형태.' },
+      { given: '민서', romanized: 'Min-seo', meaning: '"맑은 학자" — 민(珉)은 귀중하고 투명함, 서(書)는 강이 생명을 운반하듯 담겨진 지혜.' },
+      { given: '현우', romanized: 'Hyun-woo', meaning: '"깊은 비" — 현(玄)은 신비로운 깊이, 우(雨)는 변화를 가져오기 위해 먹구름에서 내리는 비.' },
+      { given: '수호', romanized: 'Su-ho', meaning: '"지키는 흐름" — 수(守)는 수호, 호(浩)는 깊은 물의 힘으로 보호하는 사람의 광대한 영역.' },
+      { given: '민재', romanized: 'Min-jae', meaning: '"깊고 재능 있는" — 민(敏)은 水의 예리한 지성으로 흐르고, 재(才)는 그것이 형성하고 앞으로 나아가는 탁월한 재능.' },
     ],
   },
 };
 
+
 // ── Soulmate Database ─────────────────────────────────────────────
-const SOULMATE_DB: Record<ElementEn, { female: SoulmateProfile[]; male: SoulmateProfile[] }> = {
+export const SOULMATE_DB: Record<ElementEn, { female: SoulmateProfile[]; male: SoulmateProfile[] }> = {
   wood: {
-    female: [{ name:'이서진', nameRomanized:'Seo-jin Lee', trait1:'Meticulous & Principled', trait2:'Quietly Confident', trait3:'Appreciates Depth', description:'庚金의 에너지. 당신의 광대한 木 에너지를 단단하게 잡아주는 구조와 결단력의 명료함을 지닌 사람. 당신이 자유롭게 뻗어 나가는 곳에서, 그녀는 당신에게 우아한 형태를 부여합니다.', compatibilityScore:94 }],
-    male: [{ name:'강재우', nameRomanized:'Jae-woo Kang', trait1:'Decisive & Structured', trait2:'Quietly Ambitious', trait3:'Understated Elegance', description:'庚金의 에너지. 당신의 광범위한 비전에 아름다운 형태를 부여하는 정확하고 흔들리지 않는 신념을 가진 사람. 당신이 자유롭게 상상하는 곳에서, 그는 흠잡을 데 없이 실행합니다.', compatibilityScore:94 }],
+    female: [{ name: '이서진', nameRomanized: 'Seo-jin Lee', trait1: 'Meticulous & Principled', trait2: 'Quietly Confident', trait3: 'Appreciates Depth', description: '庚金의 에너지. 당신의 광대한 木 에너지를 단단하게 잡아주는 구조와 결단력의 명료함을 지닌 사람. 당신이 자유롭게 뻗어 나가는 곳에서, 그녀는 당신에게 우아한 형태를 부여합니다.', compatibilityScore: 94 }],
+    male: [{ name: '강재우', nameRomanized: 'Jae-woo Kang', trait1: 'Decisive & Structured', trait2: 'Quietly Ambitious', trait3: 'Understated Elegance', description: '庚金의 에너지. 당신의 광범위한 비전에 아름다운 형태를 부여하는 정확하고 흔들리지 않는 신념을 가진 사람. 당신이 자유롭게 상상하는 곳에서, 그는 흠잡을 데 없이 실행합니다.', compatibilityScore: 94 }],
   },
   fire: {
-    female: [{ name:'박수현', nameRomanized:'Su-hyeon Park', trait1:'Deeply Calm', trait2:'Intellectually Vast', trait3:'Emotionally Intuitive', description:'壬水의 에너지. 당신의 찬란한 불꽃을 식히고 집중시키는 고요한 지성으로 흐르는 사람. 당신의 열정은 그녀의 반영을 통해 깊이를 찾고, 그녀의 고요한 물은 당신의 따뜻함 안에서 색깔을 찾습니다.', compatibilityScore:91 }],
-    male: [{ name:'김민우', nameRomanized:'Min-woo Kim', trait1:'Introspective & Wise', trait2:'Deeply Calm', trait3:'Intellectually Boundless', description:'壬水의 에너지. 당신의 불꽃이 필요로 하면서도 저항하는 깊은 고요함을 지닌 사람. 그의 존재 안에서 당신의 열정은 철학적 토대를 찾고, 그의 광대한 지성은 따뜻함을 찾습니다.', compatibilityScore:91 }],
+    female: [{ name: '박수현', nameRomanized: 'Su-hyeon Park', trait1: 'Deeply Calm', trait2: 'Intellectually Vast', trait3: 'Emotionally Intuitive', description: '壬水의 에너지. 당신의 찬란한 불꽃을 식히고 집중시키는 고요한 지성으로 흐르는 사람. 당신의 열정은 그녀의 반영을 통해 깊이를 찾고, 그녀의 고요한 물은 당신의 따뜻함 안에서 색깔을 찾습니다.', compatibilityScore: 91 }],
+    male: [{ name: '김민우', nameRomanized: 'Min-woo Kim', trait1: 'Introspective & Wise', trait2: 'Deeply Calm', trait3: 'Intellectually Boundless', description: '壬水의 에너지. 당신의 불꽃이 필요로 하면서도 저항하는 깊은 고요함을 지닌 사람. 그의 존재 안에서 당신의 열정은 철학적 토대를 찾고, 그의 광대한 지성은 따뜻함을 찾습니다.', compatibilityScore: 91 }],
   },
   earth: {
-    female: [{ name:'최가은', nameRomanized:'Ka-eun Choi', trait1:'Imaginative & Free', trait2:'Spontaneously Warm', trait3:'Creatively Fearless', description:'甲木의 에너지. 당신의 깊이 뿌리내린 패턴에서 당신을 깨워내는 창의적 불안과 개척 정신을 가진 사람. 당신의 안정��� 그녀의 탁월한 아이디어가 꽃피울 토양이 됩니다.', compatibilityScore:89 }],
-    male: [{ name:'이지훈', nameRomanized:'Ji-hun Lee', trait1:'Creatively Visionary', trait2:'Boldly Original', trait3:'Restlessly Alive', description:'甲木의 에너지. 당신의 안정적인 Earth가 열망하면서도 두려워하는 창의적 불과 개척 정신을 가진 사람. 당신은 그에게 절실히 필요한 기반을 주고, 그는 당신에게 진정한 성장만이 제공할 수 있는 방향을 줍니다.', compatibilityScore:89 }],
+    female: [{ name: '최가은', nameRomanized: 'Ka-eun Choi', trait1: 'Imaginative & Free', trait2: 'Spontaneously Warm', trait3: 'Creatively Fearless', description: '甲木의 에너지. 당신의 깊이 뿌리내린 패턴에서 당신을 깨워내는 창의적 불안과 개척 정신을 가진 사람. 당신의 안정��� 그녀의 탁월한 아이디어가 꽃피울 토양이 됩니다.', compatibilityScore: 89 }],
+    male: [{ name: '이지훈', nameRomanized: 'Ji-hun Lee', trait1: 'Creatively Visionary', trait2: 'Boldly Original', trait3: 'Restlessly Alive', description: '甲木의 에너지. 당신의 안정적인 Earth가 열망하면서도 두려워하는 창의적 불과 개척 정신을 가진 사람. 당신은 그에게 절실히 필요한 기반을 주고, 그는 당신에게 진정한 성장만이 제공할 수 있는 방향을 줍니다.', compatibilityScore: 89 }],
   },
   metal: {
-    female: [{ name:'정나은', nameRomanized:'Na-eun Jung', trait1:'Warmly Intuitive', trait2:'Brilliantly Charismatic', trait3:'Emotionally Generous', description:'丁火의 에너지. 당신의 金 빛남을 최고의 광채로 연마하는 부드럽고 찬란한 따뜻함을 가진 사람. 당신의 정밀함이 그녀의 빛 속에서 빛나게 되고, 그녀의 불꽃은 당신의 정제된 형태에서 완벽한 용기를 찾습니다.', compatibilityScore:96 }],
-    male: [{ name:'박도현', nameRomanized:'Do-hyeon Park', trait1:'Deeply Passionate', trait2:'Radiantly Warm', trait3:'Charismatically Alive', description:'丙火의 에너지. 당신의 金 에너지를 진정한 빛남으로 정제하는 강력한 힘. 당신이 정밀함에서 완벽을 추구하는 곳에서, 그는 진정한 연결의 원초적 힘에서 그것을 찾습니다.', compatibilityScore:96 }],
+    female: [{ name: '정나은', nameRomanized: 'Na-eun Jung', trait1: 'Warmly Intuitive', trait2: 'Brilliantly Charismatic', trait3: 'Emotionally Generous', description: '丁火의 에너지. 당신의 金 빛남을 최고의 광채로 연마하는 부드럽고 찬란한 따뜻함을 가진 사람. 당신의 정밀함이 그녀의 빛 속에서 빛나게 되고, 그녀의 불꽃은 당신의 정제된 형태에서 완벽한 용기를 찾습니다.', compatibilityScore: 96 }],
+    male: [{ name: '박도현', nameRomanized: 'Do-hyeon Park', trait1: 'Deeply Passionate', trait2: 'Radiantly Warm', trait3: 'Charismatically Alive', description: '丙火의 에너지. 당신의 金 에너지를 진정한 빛남으로 정제하는 강력한 힘. 당신이 정밀함에서 완벽을 추구하는 곳에서, 그는 진정한 연결의 원초적 힘에서 그것을 찾습니다.', compatibilityScore: 96 }],
   },
   water: {
-    female: [{ name:'조하영', nameRomanized:'Ha-young Jo', trait1:'Steady & Reliable', trait2:'Grounded in Tradition', trait3:'Profoundly Patient', description:'己土의 에너지. 당신의 흐르는 水 본성에 아름다운 정의를 부여하는 강둑. 그녀 없이는 무한한 반영 속에서 자신을 잃을 수 있지만, 그녀와 함께라면 당신의 깊이는 심연이 아닌 목적지가 됩니다.', compatibilityScore:88 }],
-    male: [{ name:'윤태현', nameRomanized:'Tae-hyeon Yun', trait1:'Immovably Grounded', trait2:'Quietly Strong', trait3:'Traditionally Rooted', description:'戊土의 에너지. 당신의 Water가 주위를 흐르고, 통과하고, 결국 형성하는 산. 그의 흔들리지 않는 안정성이 당신의 광대한 지성에 필요한 용기를 제공합니다.', compatibilityScore:88 }],
+    female: [{ name: '조하영', nameRomanized: 'Ha-young Jo', trait1: 'Steady & Reliable', trait2: 'Grounded in Tradition', trait3: 'Profoundly Patient', description: '己土의 에너지. 당신의 흐르는 水 본성에 아름다운 정의를 부여하는 강둑. 그녀 없이는 무한한 반영 속에서 자신을 잃을 수 있지만, 그녀와 함께라면 당신의 깊이는 심연이 아닌 목적지가 됩니다.', compatibilityScore: 88 }],
+    male: [{ name: '윤태현', nameRomanized: 'Tae-hyeon Yun', trait1: 'Immovably Grounded', trait2: 'Quietly Strong', trait3: 'Traditionally Rooted', description: '戊土의 에너지. 당신의 Water가 주위를 흐르고, 통과하고, 결국 형성하는 산. 그의 흔들리지 않는 안정성이 당신의 광대한 지성에 필요한 용기를 제공합니다.', compatibilityScore: 88 }],
   },
 };
 
@@ -297,25 +335,62 @@ function hourPillar(hour: number, dayStemIdx: number): Pillar {
 // ── Main: calculateSaju ───────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────
 export function calculateSaju(
-  year: number, month: number, day: number, hour: number
+  year: number, month: number, day: number, hour: number, isLunar: boolean = false
 ): SajuData {
-  const yp = yearPillar(year);
-  const mp = monthPillar(year, month);
-  const dsi = dayPillarStemIndex(year, month, day);
-  const dp = dayPillar(year, month, day);
-  const hp = hourPillar(hour, dsi);
+  // Defensive check for NaN
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    console.warn('Invalid date passed to calculateSaju, falling back to 1990-01-01', { year, month, day });
+    year = 1990; month = 1; day = 1;
+  }
+  const h = isNaN(hour) ? 12 : hour;
 
-  const elements: Record<ElementEn, number> = { wood:0, fire:0, earth:0, metal:0, water:0 };
+  let dateObj;
+  if (isLunar) {
+    const lunar = Lunar.fromYmdHms(year, month, day, h, 0, 0);
+    dateObj = lunar.getSolar();
+  } else {
+    dateObj = Solar.fromYmdHms(year, month, day, h, 0, 0);
+  }
+
+  const baZi = dateObj.getLunar().getEightChar();
+
+  const parsePillar = (charStr: string): Pillar => {
+    const stemChar = charStr[0];
+    const branchChar = charStr[1];
+    const si = STEMS.indexOf(stemChar) !== -1 ? STEMS.indexOf(stemChar) : 0;
+    const bi = BRANCHES.indexOf(branchChar) !== -1 ? BRANCHES.indexOf(branchChar) : 0;
+
+    return {
+      stem: stemChar, stemKr: STEMS_KR[si],
+      branch: branchChar, branchKr: BRANCHES_KR[bi],
+      stemEl: STEM_EL_CHAR[si], branchEl: BR_EL_CHAR[bi],
+      stemElEn: STEM_EL_EN[si], branchElEn: BR_EL_EN[bi],
+      branchAnimalEmoji: BR_ANIMAL_EMOJI[bi],
+    };
+  };
+
+  const yp = parsePillar(baZi.getYear());
+  const mp = parsePillar(baZi.getMonth());
+  const dp = parsePillar(baZi.getDay());
+  const hp = parsePillar(baZi.getTime());
+
+  const dsi = STEMS.indexOf(dp.stem) !== -1 ? STEMS.indexOf(dp.stem) : 0;
+
+  const elements: Record<ElementEn, number> = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
   [yp, mp, dp, hp].forEach(p => {
     elements[p.stemElEn]++;
     elements[p.branchElEn]++;
   });
 
   const entries = Object.entries(elements) as [ElementEn, number][];
-  const dominantElement = entries.reduce((a,b) => b[1] > a[1] ? b : a)[0];
-  const lackingElement  = entries.reduce((a,b) => b[1] < a[1] ? b : a)[0];
+  const dominantElement = entries.reduce((a, b) => b[1] > a[1] ? b : a)[0];
+  const lackingElement = entries.reduce((a, b) => b[1] < a[1] ? b : a)[0];
 
-  return { year:yp, month:mp, day:dp, hour:hp, elements, dominantElement, lackingElement, dayMasterIndex: dsi };
+  return {
+    year: yp, month: mp, day: dp, hour: hp,
+    elements, dominantElement, lackingElement,
+    dayMasterIndex: dsi, isLunar
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -331,8 +406,16 @@ export function generateKoreanIdentity(
   // Deterministic seed from name
   const seed = originalName.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 0);
 
-  const namePool = NAME_DB[lackingElement][gender];
-  const nameEntry = namePool[seed % namePool.length];
+  // Surname selection
+  const surnameEntry = SURNAMES[seed % SURNAMES.length];
+
+  // Given name selection
+  const namePool = GIVEN_NAME_DB[lackingElement][gender];
+  const givenEntry = namePool[seed % namePool.length];
+
+  const fullName = surnameEntry.char + givenEntry.given;
+  const fullNameRomanized = givenEntry.romanized + ' ' + surnameEntry.romanized;
+  const combinedMeaning = `${givenEntry.meaning} (성씨 '${surnameEntry.char}': ${surnameEntry.meaning})`;
 
   const soulmatePool = SOULMATE_DB[lackingElement][gender === 'male' ? 'female' : 'male'];
   const soulmate = soulmatePool[(seed + dayMasterIndex) % soulmatePool.length];
@@ -341,21 +424,21 @@ export function generateKoreanIdentity(
   const neighborhood = NEIGHBORHOOD_MAP[dominantElement];
   const personality = PERSONALITIES[dayMasterIndex];
 
-  const total = 8;
+  const total = Object.values(saju.elements).reduce((acc, curr) => acc + curr, 0) || 8;
   const elementRadar: RadarDataPoint[] = [
-    { element:'木', elementKr:'목 · Wood', value: Math.round((saju.elements.wood  / total) * 100), fullMark:100 },
-    { element:'火', elementKr:'화 · Fire',  value: Math.round((saju.elements.fire  / total) * 100), fullMark:100 },
-    { element:'土', elementKr:'토 · Earth', value: Math.round((saju.elements.earth / total) * 100), fullMark:100 },
-    { element:'金', elementKr:'금 · Metal', value: Math.round((saju.elements.metal / total) * 100), fullMark:100 },
-    { element:'水', elementKr:'수 · Water', value: Math.round((saju.elements.water / total) * 100), fullMark:100 },
+    { element: '木', elementKr: '목 · Wood', value: Math.round((saju.elements.wood / total) * 100), fullMark: 100 },
+    { element: '火', elementKr: '화 · Fire', value: Math.round((saju.elements.fire / total) * 100), fullMark: 100 },
+    { element: '土', elementKr: '토 · Earth', value: Math.round((saju.elements.earth / total) * 100), fullMark: 100 },
+    { element: '金', elementKr: '금 · Metal', value: Math.round((saju.elements.metal / total) * 100), fullMark: 100 },
+    { element: '水', elementKr: '수 · Water', value: Math.round((saju.elements.water / total) * 100), fullMark: 100 },
   ];
 
   return {
-    surname: nameEntry.surname,
-    givenName: nameEntry.given,
-    fullName: nameEntry.surname + nameEntry.given,
-    fullNameRomanized: nameEntry.romanized,
-    nameMeaning: nameEntry.meaning,
+    surname: surnameEntry.char,
+    givenName: givenEntry.given,
+    fullName: fullName,
+    fullNameRomanized: fullNameRomanized,
+    nameMeaning: combinedMeaning,
     career: career.en,
     careerKr: career.kr,
     careerDescription: career.desc,
@@ -371,9 +454,9 @@ export function generateKoreanIdentity(
 // ── Utility: element display helpers ─────────────────────────────
 // ─────────────────────────────────────────────────────────────────
 export const ELEMENT_LABELS: Record<ElementEn, { char: string; kr: string; color: string }> = {
-  wood:  { char:'木', kr:'목', color:'#4ade80' },
-  fire:  { char:'火', kr:'화', color:'#fb923c' },
-  earth: { char:'土', kr:'토', color:'#fbbf24' },
-  metal: { char:'金', kr:'금', color:'#e2e8f0' },
-  water: { char:'水', kr:'수', color:'#60a5fa' },
+  wood: { char: '木', kr: '목', color: '#4ade80' },
+  fire: { char: '火', kr: '화', color: '#fb923c' },
+  earth: { char: '土', kr: '토', color: '#fbbf24' },
+  metal: { char: '金', kr: '금', color: '#e2e8f0' },
+  water: { char: '水', kr: '수', color: '#60a5fa' },
 };
