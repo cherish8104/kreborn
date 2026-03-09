@@ -42,50 +42,6 @@ export async function getKoreanNameFromDB(element: ElementEn, gender: 'male' | '
     }
 }
 
-/**
- * Fetches zodiac trait from the new relational table.
- */
-export async function getZodiacTrait(animal: string) {
-    const { data } = await supabase
-        .from('saju_content_zodiac')
-        .select('trait')
-        .eq('animal', animal)
-        .single();
-    return data?.trait || null;
-}
-
-/**
- * Fetches day master deep info.
- */
-export async function getDayMasterInfo(id: number) {
-    const { data } = await supabase
-        .from('saju_content_day_master')
-        .select('*')
-        .eq('day_master_id', id)
-        .single();
-    return data || null;
-}
-
-/**
- * Legacy: Fetches narrative content from the `content_templates` table.
- * (Keeping for backward compatibility while migrating pieces)
- */
-export async function getDynamicNarrativeContent(category: string, lookupKey: string, language: string = 'ko') {
-    try {
-        const { data, error } = await supabase
-            .from('content_templates')
-            .select('content')
-            .eq('category', category)
-            .eq('lookup_key', lookupKey)
-            .eq('language', language)
-            .single();
-
-        if (error) return null;
-        return data?.content || null;
-    } catch (err) {
-        return null;
-    }
-}
 
 /**
  * Saves generated user saju to the `users` table.

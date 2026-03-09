@@ -71,14 +71,14 @@ function PillarBox({ pillar, label }: {
       }}>{label}</span>
       <span style={{
         fontFamily: "'Cormorant Garamond', serif", fontSize: '22px',
-        color: EL_COLOR[pillar.stemEl] || '#f5f0e8', lineHeight: 1
+        color: EL_COLOR[pillar.stemEl] || '#f5f0e8', lineHeight: 1.15
       }}>{pillar.stem}</span>
       <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '6px', color: '#3a3028', marginBottom: 3 }}>
         {pillar.stemEl}
       </span>
       <span style={{
         fontFamily: "'Cormorant Garamond', serif", fontSize: '22px',
-        color: EL_COLOR[pillar.branchEl] || '#f5f0e8', lineHeight: 1
+        color: EL_COLOR[pillar.branchEl] || '#f5f0e8', lineHeight: 1.15
       }}>{pillar.branch}</span>
       <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '6px', color: '#3a3028' }}>
         {pillar.branchEl}
@@ -158,7 +158,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
         <motion.h1
           style={{
             fontFamily: "'Cormorant Garamond', serif", fontSize: '60px',
-            fontWeight: 400, color: '#f5f0e8', lineHeight: 1, letterSpacing: '0.04em'
+            fontWeight: 400, color: '#f5f0e8', lineHeight: 1.1, letterSpacing: '0.04em'
           }}
           initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.4, type: 'spring', stiffness: 90 }}>
@@ -228,7 +228,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
           }}>DOMINANT</p>
           <p style={{
             fontFamily: "'Cormorant Garamond', serif", fontSize: '22px',
-            color: domLabel.color, lineHeight: 1
+            color: domLabel.color, lineHeight: 1.1
           }}>{domLabel.char}</p>
           <p style={{
             fontFamily: 'Pretendard, sans-serif', fontSize: '9px',
@@ -354,7 +354,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>당신의 평행우주 파트너</p>
               <div className="flex items-center justify-between">
                 <div>
-                  <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '26px', fontWeight: 400, color: '#f5f0e8', lineHeight: 1 }}>{soulmate.name}</p>
+                  <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '26px', fontWeight: 400, color: '#f5f0e8', lineHeight: 1.1 }}>{soulmate.name}</p>
                   <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '12px', fontStyle: 'italic', color: '#e8dcca', marginTop: 1 }}>{soulmate.nameRomanized}</p>
                   <div className="flex gap-1.5 mt-2 flex-wrap">
                     {[soulmate.trait1, soulmate.trait2, soulmate.trait3].map(t => (
@@ -382,7 +382,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
           </div>
           <LockedSlot locked={locked} label="행운의 동네 시나리오 공개">
             <div style={{ padding: '2px 0' }}>
-              <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 300, color: '#4ade80', lineHeight: 1, marginBottom: 4 }}>{neighborhood.name}</p>
+              <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 300, color: '#4ade80', lineHeight: 1.15, marginBottom: 4 }}>{neighborhood.name}</p>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#bba689', marginTop: 2 }}>{neighborhood.nameKr}</p>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#8a7255', lineHeight: 1.7, marginTop: 6 }}>{neighborhood.vibe}</p>
             </div>

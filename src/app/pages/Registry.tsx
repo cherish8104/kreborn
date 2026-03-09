@@ -129,6 +129,7 @@ export function Registry() {
     birthHour: 12, gender: '', nationality: '', email: '',
   });
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const liveSaju = useMemo(() => {
@@ -171,10 +172,10 @@ export function Registry() {
     }
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     if (!validate()) return;
     if (step < 7) { setStep(s => s + 1); setError(''); }
-    else handleSubmit();
+    else await handleSubmit();
   };
 
   const goBack = () => {
@@ -192,61 +193,64 @@ export function Registry() {
   };
 
   const handleSubmit = async () => {
-    const y = parseInt(form.birthYear) || 1990;
-    const m = parseInt(form.birthMonth) || 6;
-    const d = parseInt(form.birthDay) || 15;
-    const h = form.birthHour ?? 12;
-
-    // liveSaju를 최대한 활용하되, 없으면 방어적으로 계산 (NaN 방지)
-    let saju;
+    setIsSubmitting(true);
+    setError('');
     try {
-      saju = liveSaju ?? calculateSaju(y, m, d, h);
+      const y = parseInt(form.birthYear) || 1990;
+      const m = parseInt(form.birthMonth) || 6;
+      const d = parseInt(form.birthDay) || 15;
+      const h = form.birthHour ?? 12;
+
+      let saju;
+      try {
+        saju = liveSaju ?? calculateSaju(y, m, d, h);
+      } catch (err) {
+        console.error('Saju calculation failed:', err);
+        saju = calculateSaju(1990, 6, 15, 12);
+      }
+
+      const seed = form.name.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 0);
+
+      const { getKoreanNameFromDB, getKoreanSurnameFromDB } = await import('../../lib/contentApi');
+      const [dbSurname, dbName] = await Promise.all([
+        getKoreanSurnameFromDB(seed),
+        getKoreanNameFromDB(saju.lackingElement, (form.gender || 'male') as 'male' | 'female', seed)
+      ]);
+
+      const identity = generateKoreanIdentity(saju, (form.gender || 'male') as 'male' | 'female', form.name);
+
+      if (dbSurname && dbName) {
+        identity.surname = dbSurname.surname;
+        identity.givenName = dbName.given;
+        identity.fullName = dbSurname.surname + dbName.given;
+        identity.fullNameRomanized = `${dbSurname.surname.toUpperCase()} ${dbName.romanized}`;
+        identity.nameMeaning = `${dbSurname.meaning}\n\n${dbName.meaning}`;
+      } else if (dbName) {
+        identity.givenName = dbName.given;
+        identity.fullName = identity.surname + dbName.given;
+        identity.fullNameRomanized = `${identity.surname.toUpperCase()} ${dbName.romanized}`;
+        identity.nameMeaning = `${dbName.meaning}`;
+      }
+
+      setUserInput({
+        name: form.name,
+        birthYear: y,
+        birthMonth: m,
+        birthDay: d,
+        birthHour: h,
+        gender: (form.gender || 'male') as 'male' | 'female',
+        nationality: form.nationality || 'Other',
+        email: form.email,
+        isLunar: false
+      });
+
+      setIdentity(identity);
+      navigate('/montage');
     } catch (err) {
-      console.error('Saju calculation failed:', err);
-      // Fallback to a safe default if everything fails
-      saju = calculateSaju(1990, 6, 15, 12);
+      console.error('Submit failed:', err);
+      setError('분석 중 오류가 발생했습니다. 다시 시도해주세요.');
+      setIsSubmitting(false);
     }
-
-    // Deterministic seed from name
-    const seed = form.name.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 0);
-
-    // Try to get dynamic name from the 1000-name database
-    const { getKoreanNameFromDB, getKoreanSurnameFromDB } = await import('../../lib/contentApi');
-    const [dbSurname, dbName] = await Promise.all([
-      getKoreanSurnameFromDB(seed),
-      getKoreanNameFromDB(saju.lackingElement, (form.gender || 'male') as 'male' | 'female', seed)
-    ]);
-
-    const identity = generateKoreanIdentity(saju, (form.gender || 'male') as 'male' | 'female', form.name);
-
-    // If we have DB data, override with authentic Korean combined name
-    if (dbSurname && dbName) {
-      identity.surname = dbSurname.surname;
-      identity.givenName = dbName.given;
-      identity.fullName = dbSurname.surname + dbName.given;
-      identity.fullNameRomanized = `${dbSurname.surname.toUpperCase()} ${dbName.romanized}`;
-      identity.nameMeaning = `${dbSurname.meaning}\n\n${dbName.meaning}`;
-    } else if (dbName) {
-      identity.givenName = dbName.given;
-      identity.fullName = identity.surname + dbName.given;
-      identity.fullNameRomanized = `${identity.surname.toUpperCase()} ${dbName.romanized}`;
-      identity.nameMeaning = `${dbName.meaning}`;
-    }
-
-    setUserInput({
-      name: form.name,
-      birthYear: y,
-      birthMonth: m,
-      birthDay: d,
-      birthHour: h,
-      gender: (form.gender || 'male') as 'male' | 'female',
-      nationality: form.nationality || 'Other',
-      email: form.email,
-      isLunar: false // 기본값 추가
-    });
-
-    setIdentity(identity);
-    navigate('/montage');
   };
 
   const topBgTint = step <= 4
@@ -604,21 +608,21 @@ export function Registry() {
           </AnimatePresence>
 
           {showNextBtn && (
-            <motion.button onClick={goNext} className="w-full mt-5"
+            <motion.button onClick={goNext} disabled={isSubmitting} className="w-full mt-5"
               style={{
                 padding: '15px 0', fontFamily: 'Pretendard, sans-serif', fontSize: '12px',
-                letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer',
-                background: isNextEnabled()
+                letterSpacing: '0.2em', textTransform: 'uppercase', cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                background: isNextEnabled() && !isSubmitting
                   ? 'linear-gradient(135deg, rgba(201,169,110,0.28), rgba(201,169,110,0.1))'
                   : 'rgba(255,255,255,0.025)',
-                border: isNextEnabled()
+                border: isNextEnabled() && !isSubmitting
                   ? '1px solid rgba(201,169,110,0.55)'
                   : '1px solid rgba(255,255,255,0.05)',
-                color: isNextEnabled() ? '#f5f0e8' : '#2e2820',
+                color: isNextEnabled() && !isSubmitting ? '#f5f0e8' : '#2e2820',
                 transition: 'all 0.2s'
               }}
-              whileTap={isNextEnabled() ? { scale: 0.97 } : {}}>
-              {step < 7 ? '다음 →' : '사주 분석 시작 →'}
+              whileTap={isNextEnabled() && !isSubmitting ? { scale: 0.97 } : {}}>
+              {step < 7 ? '다음 →' : isSubmitting ? '분석 중…' : '사주 분석 시작 →'}
             </motion.button>
           )}
 

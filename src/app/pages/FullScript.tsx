@@ -8,6 +8,7 @@ import { ResultCard } from '../components/ResultCard';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
 } from 'recharts';
+import { ExportActions } from '../components/ExportActions';
 
 const SEOUL_NIGHT = 'https://images.unsplash.com/photo-1634719887228-9936cb61cba4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxTZW91bCUyMEtvcmVhJTIwY2l0eSUyMG5pZ2h0JTIwbHV4dXJ5JTIwYm9rZWh8ZW58MXx8fHwxNzcyNzQyMjkwfDA&ixlib=rb-4.1.0&q=80&w=1080';
 const BUKCHON_IMG = 'https://images.unsplash.com/photo-1541963463532-d68292c34b19?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxCdWtjaG9uJTIwaGFub2slMjBTZW91bCUyMHRyYWRpdGlvbmFsJTIwa29yZWFufGVufDF8fHx8MTc3Mjc0MjI5MHww&ixlib=rb-4.1.0&q=80&w=1080';
@@ -91,7 +92,7 @@ export function FullScript() {
   const { zodiac, dayMaster, scenario, pastData, youthData, futureData, gyeokguk, pastLife, kDrama, luckyData } = narrative;
 
   return (
-    <div className="min-h-screen w-full" style={{ backgroundColor: '#0a0a0a' }}>
+    <div id="full-script-container" className="min-h-screen w-full" style={{ backgroundColor: '#0a0a0a' }}>
 
       {/* ── Hero ── */}
       <div className="relative w-full overflow-hidden" style={{ height: 240 }}>
@@ -640,6 +641,12 @@ export function FullScript() {
               </div>
             </div>
           </KoreanBorder>
+        </motion.div>
+
+        {/* ── [11] Export & Save Actions ─────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }} transition={{ duration: 0.7 }}>
+          <ExportActions targetId="full-script-container" userName={identity.fullName} userEmail={userInput.email || ''} />
         </motion.div>
 
         {/* ── Footer ──────────────────────────────────────── */}
