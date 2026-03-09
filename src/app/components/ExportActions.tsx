@@ -21,30 +21,58 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
             const element = document.getElementById(targetId);
             if (!element) throw new Error("Target element not found");
 
-            // Hide scrollbar globally before capturing to prevent it from showing in the PDF
+            // Scroll to top so html2canvas captures from the beginning
+            window.scrollTo(0, 0);
+
+            // Hide scrollbar globally
             const bodyOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
 
-            // Ensure all fonts are fully loaded before measuring text nodes
+            // Wait for all fonts to be ready
             if ('fonts' in document) {
                 await document.fonts.ready;
             }
 
-            // Give a small delay to ensure any remaining webfonts/animations have settled and scrollbar is removed
-            await new Promise(resolve => setTimeout(resolve, 800));
+            // Preload all <img> elements inside the target to avoid blank spots
+            const images = Array.from(element.querySelectorAll('img'));
+            await Promise.allSettled(
+                images.map(
+                    (img) =>
+                        new Promise<void>((resolve) => {
+                            if (img.complete && img.naturalWidth > 0) {
+                                resolve();
+                            } else {
+                                img.onload = () => resolve();
+                                img.onerror = () => resolve(); // don't block on broken images
+                                // Re-trigger load for CORS by appending cache-bust if needed
+                                if (!img.src.includes('crossorigin')) {
+                                    img.crossOrigin = 'anonymous';
+                                    const src = img.src;
+                                    img.src = '';
+                                    img.src = src;
+                                }
+                            }
+                        })
+                )
+            );
+
+            // Allow a brief settle after image reload + font render
+            await new Promise((resolve) => setTimeout(resolve, 600));
+
+            const SCALE = 3; // 3× for sharp retina quality (vs previous 2×)
 
             const canvas = await html2canvas(element, {
-                scale: 2, // 2x for retina quality
+                scale: SCALE,
                 useCORS: true,
-                allowTaint: true,
+                allowTaint: false,
                 backgroundColor: '#0a0a0a',
-                // Force dimensions to match our 430px mobile layout strictly during cloning
+                imageTimeout: 15000,
+                logging: false,
                 width: 430,
                 windowWidth: 430,
                 scrollX: 0,
                 scrollY: 0,
                 onclone: (documentClone) => {
-                    // Force the cloned target to be exactly 430px wide
                     const clonedTarget = documentClone.getElementById(targetId);
                     if (clonedTarget) {
                         clonedTarget.style.width = '430px';
@@ -52,49 +80,43 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
                         clonedTarget.style.margin = '0 auto';
                     }
 
-                    // Force all animating elements to be fully visible in the clone
+                    // Hide the export buttons from the capture
                     const exportBtn = documentClone.querySelector('.export-actions-container');
                     if (exportBtn) {
                         (exportBtn as HTMLElement).style.display = 'none';
                     }
 
-                    const allElements = documentClone.querySelectorAll('*');
-                    allElements.forEach((el) => {
+                    // Force all motion-animated elements visible and strip layout-breaking transforms
+                    documentClone.querySelectorAll('*').forEach((el) => {
                         const htmlEl = el as HTMLElement;
-                        // Force framer-motion elements to full opacity and remove layout-breaking transforms
-                        if (htmlEl.style.opacity === '0' || htmlEl.style.opacity === '') {
-                            const computedStyle = window.getComputedStyle(el);
-                            if (computedStyle.opacity === '0') {
-                                htmlEl.style.opacity = '1';
-                            }
-                        }
-
-                        // Strip transforms which cause html2canvas text overlapping/bounding box issues
+                        const computed = window.getComputedStyle(el);
+                        if (computed.opacity === '0') htmlEl.style.opacity = '1';
                         htmlEl.style.transform = 'none';
                         htmlEl.style.willChange = 'auto';
                         htmlEl.style.transition = 'none';
                         htmlEl.style.animation = 'none';
                     });
-                }
+                },
             });
 
             // Restore scrollbar
             document.body.style.overflow = bodyOverflow;
 
-            const imgWidth = canvas.width / 2;
-            const imgHeight = canvas.height / 2;
+            // Logical CSS pixel dimensions (canvas is SCALE× the CSS size)
+            const pdfWidth = canvas.width / SCALE;
+            const pdfHeight = canvas.height / SCALE;
 
-            // Using JPEG over PNG is much more stable for large scrolling pages in jsPDF
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            // PNG preserves sharp edges and Korean text without JPEG compression artifacts
+            const imgData = canvas.toDataURL('image/png');
 
-            // Generate a single tall page matching the exactly captured height
             const pdf = new jsPDF({
                 orientation: 'portrait',
                 unit: 'px',
-                format: [imgWidth, imgHeight]
+                format: [pdfWidth, pdfHeight],
+                hotfixes: ['px_scaling'],
             });
 
-            pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
             pdf.save(`K-REBORN_${userName.replace(/\s+/g, '_')}_Identity.pdf`);
         } catch (error) {
             console.error("PDF Export failed:", error);

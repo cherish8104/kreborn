@@ -134,8 +134,6 @@ export async function getNarrative(saju: SajuData, language: string = 'ko'): Pro
                         dbPast,
                         dbYouth,
                         dbFuture,
-                        dbSoulmate,
-                        dbNeighborhood
                 ] = await Promise.all([
                         supabase.from('saju_content_zodiac').select('*').eq('kr', zodiacBasics.kr).single(),
                         supabase.from('saju_content_day_master').select('*').eq('day_master_id', idx).single(),
@@ -143,8 +141,6 @@ export async function getNarrative(saju: SajuData, language: string = 'ko'): Pro
                         supabase.from('saju_content_narrative_past').select('*').eq('stem_key', saju.year.stem).single(),
                         supabase.from('saju_content_narrative_youth').select('*').eq('branch_key', saju.month.branch).single(),
                         supabase.from('saju_content_narrative_future').select('*').eq('branch_key', saju.hour.branch).single(),
-                        supabase.from('saju_content_soulmate').select('*').eq('element', saju.lackingElement).single(),
-                        supabase.from('saju_content_neighborhood').select('*').eq('element', saju.dominantElement).single()
                 ]);
 
                 return {

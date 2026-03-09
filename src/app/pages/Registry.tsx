@@ -209,7 +209,7 @@ export function Registry() {
         saju = calculateSaju(1990, 6, 15, 12);
       }
 
-      const seed = form.name.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 0);
+      const seed = (form.name + y + m + d).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 0);
 
       const { getKoreanNameFromDB, getKoreanSurnameFromDB } = await import('../../lib/contentApi');
       const [dbSurname, dbName] = await Promise.all([
