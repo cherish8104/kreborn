@@ -58,9 +58,8 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
 
             // --- New Strategy: Auto-scroll to trigger all animations naturally ---
             const scrollHeight = document.documentElement.scrollHeight;
-            const clientHeight = document.documentElement.clientHeight;
             const scrollSteps = 10;
-            const scrollDelay = 150; // ms per step
+            const scrollDelay = 180; // ms per step
 
             // Scroll down step by step to trigger whileInView animations
             for (let i = 1; i <= scrollSteps; i++) {
@@ -72,7 +71,7 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
             window.scrollTo(0, 0);
 
             // Allow final settle time for any remaining layout shifts or re-renders
-            await new Promise((resolve) => setTimeout(resolve, 800));
+            await new Promise((resolve) => setTimeout(resolve, 1500));
 
             const SCALE = 3; // 3× for sharp retina quality
 
@@ -101,15 +100,7 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
                         (exportBtn as HTMLElement).style.display = 'none';
                     }
 
-                    // Since we scrolled, elements should be visible. We still force them just in case.
-                    documentClone.querySelectorAll('*').forEach((el) => {
-                        const htmlEl = el as HTMLElement;
-                        htmlEl.style.setProperty('transform', 'none', 'important');
-                        htmlEl.style.setProperty('transition', 'none', 'important');
-                        htmlEl.style.setProperty('animation', 'none', 'important');
-                    });
-
-                    // Restore animated bar widths
+                    // Restore animated bar widths safely
                     if (clonedTarget) {
                         clonedTarget.querySelectorAll('.ohaeng-bar').forEach((el) => {
                             const htmlEl = el as HTMLElement;
@@ -120,7 +111,7 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
                         });
                     }
 
-                    // ResponsiveContainer fix
+                    // ResponsiveContainer explicit dimensions
                     if (clonedTarget) {
                         clonedTarget.querySelectorAll('.recharts-responsive-container').forEach((el) => {
                             const htmlEl = el as HTMLElement;
