@@ -29,8 +29,8 @@ function Corner({ pos }: { pos: string }) {
 }
 
 /* ── Locked slot wrapper ────────────────────────────────────── */
-function LockedSlot({ children, locked, label }: {
-  children: React.ReactNode; locked: boolean; label: string;
+function LockedSlot({ children, locked, label, onUnlock }: {
+  children: React.ReactNode; locked: boolean; label: string; onUnlock?: () => void;
 }) {
   return (
     <div className="relative overflow-hidden">
@@ -40,9 +40,13 @@ function LockedSlot({ children, locked, label }: {
       </motion.div>
       {locked && (
         <div className="absolute inset-0 flex items-center justify-center"
-          style={{ background: 'rgba(10,10,10,0.15)', backdropFilter: 'blur(1px)' }}>
+          style={{ background: 'rgba(10,10,10,0.15)', backdropFilter: 'blur(1px)' }}
+          onClick={onUnlock}>
           <div className="flex items-center gap-2 px-3 py-1.5"
-            style={{ background: 'rgba(10,10,10,0.9)', border: '1px solid rgba(201,169,110,0.4)' }}>
+            style={{
+              background: 'rgba(10,10,10,0.9)', border: '1px solid rgba(201,169,110,0.4)',
+              cursor: onUnlock ? 'pointer' : 'default'
+            }}>
             <span style={{ fontSize: '11px' }}>🔒</span>
             <span style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '10px',
@@ -94,9 +98,11 @@ interface ResultCardProps {
   mode?: 'preview' | 'full';
   /** Extra bottom padding inside card (for payment sheet clearance) */
   extraPad?: number;
+  /** Called when user clicks a locked slot — use to open paywall */
+  onUnlock?: () => void;
 }
 
-export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }: ResultCardProps) {
+export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, onUnlock }: ResultCardProps) {
   const locked = mode === 'preview';
   const { saju, soulmate, neighborhood } = identity;
   const elLabel = ELEMENT_LABELS[saju.lackingElement];
@@ -271,7 +277,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
             <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>사주 시간 서사 · TIME NARRATIVE</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} label="서사 시나리오 잠금 해제">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label="서사 시나리오 잠금 해제">
             <div style={{ padding: '2px 0' }}>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>과거의 흔적과 미래의 절정기</p>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', lineHeight: 1.6 }}>당신의 사주에 새겨진 시간의 흐름을 분석하여 인생의 결정적 타이밍을 알려드립니다.</p>
@@ -286,7 +292,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
             <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>일주론 심층 분석 · DAY MASTER</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} label="심층 리포트 잠금 해제">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label="심층 리포트 잠금 해제">
             <div className="flex items-center justify-between">
               <div>
                 <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', color: '#f5f0e8', fontWeight: 300, marginBottom: 2 }}>{saju.day.stem}{saju.day.branch} <span style={{ fontSize: '14px', color: '#bba689' }}>일주</span></p>
@@ -307,7 +313,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
             <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>띠 분석 · CHINESE ZODIAC</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} label="띠별 상세 성향 공개">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label="띠별 상세 성향 공개">
             <div style={{ padding: '2px 0' }}>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>십이지신과 기운의 조화</p>
               <div className="flex items-center gap-3">
@@ -327,7 +333,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
             <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>오행 블루프린트 · RADAR CHART</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} label="오행 에너지 차트 공개">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label="오행 에너지 차트 공개">
             <div style={{ padding: '2px 0' }}>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>음양오행 밸런스</p>
               <div className="flex items-center gap-4">
@@ -349,7 +355,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
             <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>운명의 짝 · SOULMATE</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} label="운명의 짝 정보 확인">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label="운명의 짝 정보 확인">
             <div style={{ padding: '2px 0' }}>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>당신의 평행우주 파트너</p>
               <div className="flex items-center justify-between">
@@ -380,7 +386,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0 }:
             <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>서울 동네 시나리오 · LUCKY SPOT</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} label="행운의 동네 시나리오 공개">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label="행운의 동네 시나리오 공개">
             <div style={{ padding: '2px 0' }}>
               <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 300, color: '#4ade80', lineHeight: 1.15, marginBottom: 4 }}>{neighborhood.name}</p>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#bba689', marginTop: 2 }}>{neighborhood.nameKr}</p>

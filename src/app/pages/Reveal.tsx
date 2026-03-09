@@ -102,7 +102,7 @@ export function Reveal() {
       {/* ── ResultCard (preview mode) ── */}
       <div className="px-4 pt-5"
         style={{ paddingBottom: showPaywall ? sheetH + 24 : 120 }}>
-        <ResultCard identity={identity} userInput={userInput} mode="preview" />
+        <ResultCard identity={identity} userInput={userInput} mode="preview" onUnlock={() => setShowPaywall(true)} />
 
         {/* ── Reopen Button ── */}
         <AnimatePresence>
