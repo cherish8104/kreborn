@@ -124,6 +124,8 @@ export async function getNarrative(saju: SajuData, language: string = 'ko'): Pro
         const zodiacBasics = ZODIAC_BASICS[branchChar] || ZODIAC_BASICS['子'];
 
         try {
+                if (!supabase) throw new Error('Supabase not configured');
+
                 // Fetch from New Relational Tables as Single Source of Truth
                 const [
                         dbZodiac,
@@ -191,15 +193,13 @@ export async function getNarrative(saju: SajuData, language: string = 'ko'): Pro
                 };
         } catch (err) {
                 console.warn('[NarrativeDB] Error fetching relational content', err);
-                
-                // Extremely minimal fallback to prevent UI crash if DB is totally down
                 return {
-                        zodiac: { animal: zodiacBasics.animal, kr: zodiacBasics.kr, emoji: zodiacBasics.emoji, trait: 'DB Error' },
-                        dayMaster: { title: 'DB Error', hanja: '?', nature: 'Error', strength: [], caution: [], koreanStyle: 'Error', luckyColor: 'Error', luckyColorHex: '#000000', luckyNumber: 0 },
-                        scenario: { morning: '...', afternoon: '...', evening: '...' },
-                        pastData: { title: '...', keyword: '...', narrative: '...' },
-                        youthData: { title: '...', keyword: '...', narrative: '...' },
-                        futureData: { title: '...', keyword: '...', narrative: '...', peak: '...' },
+                        zodiac: { animal: zodiacBasics.animal, kr: zodiacBasics.kr, emoji: zodiacBasics.emoji, trait: '' },
+                        dayMaster: { title: '', hanja: '', nature: '', strength: [], caution: [], koreanStyle: '', luckyColor: '', luckyColorHex: '#c9a96e', luckyNumber: 0 },
+                        scenario: { morning: '', afternoon: '', evening: '' },
+                        pastData: { title: '', keyword: '', narrative: '' },
+                        youthData: { title: '', keyword: '', narrative: '' },
+                        futureData: { title: '', keyword: '', narrative: '', peak: '' },
                         gyeokguk: GYEOKGUK[saju.dominantElement] ?? GYEOKGUK['wood'],
                         pastLife: PAST_LIFE_JOSEON[idx] ?? PAST_LIFE_JOSEON[0],
                         kDrama: K_DRAMA_PERSONA[saju.dominantElement] ?? K_DRAMA_PERSONA['wood'],
