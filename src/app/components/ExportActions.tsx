@@ -56,10 +56,25 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
                 )
             );
 
-            // Allow a brief settle after image reload + font render
-            await new Promise((resolve) => setTimeout(resolve, 600));
+            // --- New Strategy: Auto-scroll to trigger all animations naturally ---
+            const scrollHeight = document.documentElement.scrollHeight;
+            const clientHeight = document.documentElement.clientHeight;
+            const scrollSteps = 10;
+            const scrollDelay = 150; // ms per step
 
-            const SCALE = 3; // 3× for sharp retina quality (vs previous 2×)
+            // Scroll down step by step to trigger whileInView animations
+            for (let i = 1; i <= scrollSteps; i++) {
+                window.scrollTo(0, (scrollHeight / scrollSteps) * i);
+                await new Promise(resolve => setTimeout(resolve, scrollDelay));
+            }
+
+            // Scroll back to top to ensure consistent capture starting point
+            window.scrollTo(0, 0);
+
+            // Allow final settle time for any remaining layout shifts or re-renders
+            await new Promise((resolve) => setTimeout(resolve, 800));
+
+            const SCALE = 3; // 3× for sharp retina quality
 
             const canvas = await html2canvas(element, {
                 scale: SCALE,
@@ -86,41 +101,15 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
                         (exportBtn as HTMLElement).style.display = 'none';
                     }
 
-                    // ── User Fix 1: Force container heights to 'auto' to prevent overlapping bounds ──
-                    if (clonedTarget) {
-                        // Select all top-level section wrappers inside the main padding container
-                        const containers = clonedTarget.querySelectorAll('.px-4.pt-6.pb-16 > div');
-                        containers.forEach((el) => {
-                            const htmlEl = el as HTMLElement;
-                            htmlEl.style.setProperty('height', 'auto', 'important');
-                            htmlEl.style.setProperty('min-height', 'auto', 'important');
-                            htmlEl.style.setProperty('overflow', 'visible', 'important');
-                            htmlEl.style.setProperty('margin-bottom', '40px', 'important');
-                        });
-
-                        // Give extra top margin to section titles just in case
-                        clonedTarget.querySelectorAll('.mb-5').forEach((el) => {
-                            if (el.innerHTML.includes('SectionTitle')) return; // Just a generic check if needed
-                            const htmlEl = el as HTMLElement;
-                            // We don't have a reliable class, but the user explicitly asked to ensure titles have margin.
-                            // We'll trust the margin-bottom on the sections solves the majority.
-                        });
-                    }
-
-                    // ── User Fix 2: Force ALL elements to final visible state with !important ──
+                    // Since we scrolled, elements should be visible. We still force them just in case.
                     documentClone.querySelectorAll('*').forEach((el) => {
                         const htmlEl = el as HTMLElement;
-                        htmlEl.style.setProperty('opacity', '1', 'important');
                         htmlEl.style.setProperty('transform', 'none', 'important');
                         htmlEl.style.setProperty('transition', 'none', 'important');
                         htmlEl.style.setProperty('animation', 'none', 'important');
-                        htmlEl.style.setProperty('will-change', 'auto', 'important');
-                        htmlEl.style.setProperty('filter', 'none', 'important');
-                        htmlEl.style.setProperty('backdrop-filter', 'none', 'important');
-                        (htmlEl.style as any).setProperty('-webkit-backdrop-filter', 'none', 'important');
                     });
 
-                    // ── Fix 2: Restore animated bar widths from data-target-width ──
+                    // Restore animated bar widths
                     if (clonedTarget) {
                         clonedTarget.querySelectorAll('.ohaeng-bar').forEach((el) => {
                             const htmlEl = el as HTMLElement;
@@ -131,7 +120,7 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
                         });
                     }
 
-                    // ── Fix 3: Give ResponsiveContainer explicit dimensions ──
+                    // ResponsiveContainer fix
                     if (clonedTarget) {
                         clonedTarget.querySelectorAll('.recharts-responsive-container').forEach((el) => {
                             const htmlEl = el as HTMLElement;
