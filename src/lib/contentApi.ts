@@ -1,10 +1,8 @@
 import { supabase } from './supabase';
 import type { ElementEn } from '../app/utils/sajuEngine';
 
-/**
- * Fetches a surname from the DB based on a deterministic seed.
- */
 export async function getKoreanSurnameFromDB(seed: number) {
+    if (!supabase) return null;
     try {
         const { data, error } = await supabase.from('saju_content_surnames').select('surname, meaning');
         if (error || !data || data.length === 0) return null;
@@ -16,10 +14,8 @@ export async function getKoreanSurnameFromDB(seed: number) {
     }
 }
 
-/**
- * NEW: Fetches a deterministic Korean name from the 1000 names DB.
- */
 export async function getKoreanNameFromDB(element: ElementEn, gender: 'male' | 'female', seed: number) {
+    if (!supabase) return null;
     try {
         const { data, error } = await supabase
             .from('saju_content_names')
@@ -42,10 +38,6 @@ export async function getKoreanNameFromDB(element: ElementEn, gender: 'male' | '
     }
 }
 
-
-/**
- * Saves generated user saju to the `users` table.
- */
 export async function saveUserGeneration(
     userId: string,
     email: string,
@@ -53,6 +45,7 @@ export async function saveUserGeneration(
     generatedKoreanName: string,
     sajuData: any
 ) {
+    if (!supabase) return;
     try {
         const { error } = await supabase
             .from('users')

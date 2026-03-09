@@ -13,8 +13,6 @@ const getEnv = (key: string) => {
 const supabaseUrl = getEnv('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Supabase URL or Anon Key is missing from environment variables.');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
