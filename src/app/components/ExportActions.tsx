@@ -86,16 +86,45 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
                         (exportBtn as HTMLElement).style.display = 'none';
                     }
 
-                    // Force all motion-animated elements visible and strip layout-breaking transforms
+                    // ── Fix 1: Force ALL elements to final visible state ──
+                    // whileInView elements remain at initial state (opacity:0, transform offset)
+                    // in the cloned DOM because they are never in viewport.
+                    // Also strips infinite pulse/scale animations that may capture at opacity:0.
                     documentClone.querySelectorAll('*').forEach((el) => {
                         const htmlEl = el as HTMLElement;
-                        const computed = window.getComputedStyle(el);
-                        if (computed.opacity === '0') htmlEl.style.opacity = '1';
+                        htmlEl.style.opacity = '1';
                         htmlEl.style.transform = 'none';
                         htmlEl.style.willChange = 'auto';
                         htmlEl.style.transition = 'none';
                         htmlEl.style.animation = 'none';
+                        htmlEl.style.filter = 'none';
+                        htmlEl.style.backdropFilter = 'none';
+                        (htmlEl.style as any).webkitBackdropFilter = 'none';
                     });
+
+                    // ── Fix 2: Restore animated bar widths from data-target-width ──
+                    // Ohaeng bars use initial={{ width: 0 }} whileInView={{ width: N% }}
+                    // In clone they stay at 0. Use data attribute to set correct width.
+                    if (clonedTarget) {
+                        clonedTarget.querySelectorAll('.ohaeng-bar').forEach((el) => {
+                            const htmlEl = el as HTMLElement;
+                            const targetWidth = htmlEl.getAttribute('data-target-width');
+                            if (targetWidth) {
+                                htmlEl.style.width = targetWidth;
+                            }
+                        });
+                    }
+
+                    // ── Fix 3: Give ResponsiveContainer explicit dimensions ──
+                    // Recharts ResponsiveContainer measures parent size which is 0 in clone.
+                    if (clonedTarget) {
+                        clonedTarget.querySelectorAll('.recharts-responsive-container').forEach((el) => {
+                            const htmlEl = el as HTMLElement;
+                            htmlEl.style.width = '380px';
+                            htmlEl.style.height = '230px';
+                            htmlEl.style.position = 'relative';
+                        });
+                    }
                 },
             });
 

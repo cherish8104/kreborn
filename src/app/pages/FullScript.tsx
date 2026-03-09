@@ -372,7 +372,8 @@ export function FullScript() {
                   <div key={el.element} className="flex items-center gap-2.5">
                     <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '14px', color, lineHeight: 1, minWidth: 16 }}>{el.element}</span>
                     <div className="flex-1 relative" style={{ height: 3, background: 'rgba(255,255,255,0.05)' }}>
-                      <motion.div className="absolute inset-y-0 left-0" style={{ background: color, opacity: 0.65 }}
+                      <motion.div className="absolute inset-y-0 left-0 ohaeng-bar" style={{ background: color, opacity: 0.65 }}
+                        data-target-width={`${el.value}%`}
                         initial={{ width: 0 }} whileInView={{ width: `${el.value}%` }}
                         viewport={{ once: true }} transition={{ duration: 0.9, delay: 0.15 }} />
                     </div>
