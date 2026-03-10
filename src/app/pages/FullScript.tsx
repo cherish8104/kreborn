@@ -109,11 +109,17 @@ export function FullScript() {
 
         <div className="absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-            className="flex items-center gap-2 mb-3">
+            className="flex flex-col items-center gap-1 mb-3">
             <span style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '8px',
               color: '#bba689', letterSpacing: '0.22em'
             }}>🇰🇷 대한민국 평행 정체성</span>
+            <span style={{
+              fontFamily: 'Pretendard, sans-serif', fontSize: '13px',
+              color: '#c9a96e', letterSpacing: '0.06em'
+            }}>
+              {userInput.name} 님만을 위한 한국 이름입니다
+            </span>
           </motion.div>
           <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             style={{
