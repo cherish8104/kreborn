@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { useUser } from '../store/UserContext';
 import { calculateSaju, generateKoreanIdentity } from '../utils/sajuEngine';
+import { trackCompleteRegistration } from '../../lib/analytics';
 import type { Pillar } from '../utils/sajuEngine';
 
 /* ─── Constants ─────────────────────────────────────────── */
@@ -245,6 +246,7 @@ export function Registry() {
       });
 
       setIdentity(identity);
+      trackCompleteRegistration({ gender: form.gender || 'male', nationality: form.nationality || 'Other' });
       navigate('/montage');
     } catch (err) {
       console.error('Submit failed:', err);

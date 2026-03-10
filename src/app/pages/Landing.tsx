@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { useEffect, useRef } from 'react';
 import { SEO } from '../components/SEO';
+import { trackBeginRegistration } from '../../lib/analytics';
 
 const SEOUL_BG = 'https://images.unsplash.com/photo-1579085353237-916e72ecb32d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxTZW91bCUyMGNpdHklMjBkYXduJTIwbWlzdHklMjBza3lsaW5lJTIwY2luZW1hdGljfGVufDF8fHx8MTc3Mjc0MTQ0OHww&ixlib=rb-4.1.0&q=80&w=1080';
 const WOMAN_IMG = 'https://images.unsplash.com/photo-1535189005916-e5e47dc88316?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxLb3JlYW4lMjB3b21hbiUyMGVsZWdhbnQlMjBwb3J0cmFpdCUyMG1vZGVybiUyMFNlb3VsfGVufDF8fHx8MTc3Mjc0Mjg3Nnww&ixlib=rb-4.1.0&q=80&w=1080';
@@ -303,7 +304,7 @@ export function Landing() {
             사주 팔자(8글자) 분석으로 당신의<br />한국 이름, 직업 성향, 운명의 짝,<br />서울 동네를 처방합니다.
           </motion.p>
 
-          <motion.button onClick={() => navigate('/registry')}
+          <motion.button onClick={() => { trackBeginRegistration(); navigate('/registry'); }}
             className="w-full mb-10 relative overflow-hidden"
             style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '12px',
@@ -811,7 +812,7 @@ export function Landing() {
               </div>
             </div>
 
-            <motion.button onClick={() => navigate('/registry')} className="w-full mb-4"
+            <motion.button onClick={() => { trackBeginRegistration(); navigate('/registry'); }} className="w-full mb-4"
               style={{
                 padding: '18px 0', fontFamily: 'Pretendard, sans-serif', fontSize: '13px',
                 letterSpacing: '0.2em', textTransform: 'uppercase',
