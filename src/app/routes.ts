@@ -32,4 +32,12 @@ export const router = createBrowserRouter([
       return { Component: Admin };
     },
   },
+  {
+    // 공유 결과 페이지 — share_code로 Supabase에서 데이터 로드
+    path: '/s/:code',
+    lazy: async () => {
+      const { SharedResult } = await import('./pages/SharedResult');
+      return { Component: SharedResult };
+    },
+  },
 ]);

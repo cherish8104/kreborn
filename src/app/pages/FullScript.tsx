@@ -65,7 +65,7 @@ function KoreanBorder({ children, color = 'rgba(201,169,110,0.18)' }: {
 
 export function FullScript() {
   const navigate = useNavigate();
-  const { identity, userInput } = useUser();
+  const { identity, userInput, shareCode } = useUser();
   const [narrative, setNarrative] = useState<any>(null);
 
   useEffect(() => {
@@ -647,7 +647,7 @@ export function FullScript() {
         {/* ── [11] Export & Save Actions ─────────────────────────── */}
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }} transition={{ duration: 0.7 }}>
-          <ExportActions targetId="full-script-container" userName={identity.fullName} userEmail={userInput.email || ''} />
+          <ExportActions targetId="full-script-container" userName={identity.fullName} userEmail={userInput.email || ''} shareCode={shareCode} />
         </motion.div>
 
         {/* ── Footer ──────────────────────────────────────── */}

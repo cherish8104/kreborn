@@ -123,7 +123,7 @@ interface FormState {
 
 export function Registry() {
   const navigate = useNavigate();
-  const { setUserInput, setIdentity } = useUser();
+  const { setUserInput, setIdentity, setShareCode } = useUser();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>({
     name: '', birthYear: '', birthMonth: '', birthDay: '',
@@ -212,7 +212,7 @@ export function Registry() {
 
       const seed = (form.name + y + m + d).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 0);
 
-      const { getKoreanNameFromDB, getKoreanSurnameFromDB } = await import('../../lib/contentApi');
+      const { getKoreanNameFromDB, getKoreanSurnameFromDB, generateShareCode, saveUserGeneration } = await import('../../lib/contentApi');
       const [dbSurname, dbName] = await Promise.all([
         getKoreanSurnameFromDB(seed),
         getKoreanNameFromDB(saju.lackingElement, (form.gender || 'male') as 'male' | 'female', seed)
@@ -233,7 +233,7 @@ export function Registry() {
         identity.nameMeaning = `${dbName.meaning}`;
       }
 
-      setUserInput({
+      const userInputData = {
         name: form.name,
         birthYear: y,
         birthMonth: m,
@@ -243,9 +243,15 @@ export function Registry() {
         nationality: form.nationality || 'Other',
         email: form.email,
         isLunar: false
-      });
+      };
 
+      const shareCode = generateShareCode();
+      const userId = `${form.email}_${y}${m}${d}`;
+      saveUserGeneration(userId, form.email, form.name, identity.fullName, saju, shareCode, identity, userInputData);
+
+      setUserInput(userInputData);
       setIdentity(identity);
+      setShareCode(shareCode);
       trackCompleteRegistration({ gender: form.gender || 'male', nationality: form.nationality || 'Other' });
       navigate('/montage');
     } catch (err) {

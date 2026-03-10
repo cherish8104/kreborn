@@ -17,9 +17,11 @@ interface AppState {
   userInput: UserInput | null;
   identity: KoreanIdentity | null;
   isPaid: boolean;
+  shareCode: string | null;
   setUserInput: (input: UserInput) => void;
   setIdentity: (identity: KoreanIdentity) => void;
   setIsPaid: (paid: boolean) => void;
+  setShareCode: (code: string) => void;
 }
 
 const UserContext = createContext<AppState | null>(null);
@@ -41,6 +43,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const [isPaid, setIsPaidState] = useState(false);
 
+  const [shareCode, setShareCodeState] = useState<string | null>(() => {
+    try { return sessionStorage.getItem('kreborn_share_code'); } catch { return null; }
+  });
+
   const setUserInput = (input: UserInput) => {
     setUserInputState(input);
     try { sessionStorage.setItem('kreborn_input', JSON.stringify(input)); } catch { }
@@ -53,8 +59,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const setIsPaid = (paid: boolean) => setIsPaidState(paid);
 
+  const setShareCode = (code: string) => {
+    setShareCodeState(code);
+    try { sessionStorage.setItem('kreborn_share_code', code); } catch { }
+  };
+
   return (
-    <UserContext.Provider value={{ userInput, identity, isPaid, setUserInput, setIdentity, setIsPaid }}>
+    <UserContext.Provider value={{ userInput, identity, isPaid, shareCode, setUserInput, setIdentity, setIsPaid, setShareCode }}>
       {children}
     </UserContext.Provider>
   );

@@ -1,68 +1,57 @@
 import { useState } from 'react';
-import emailjs from '@emailjs/browser';
 import { motion } from 'motion/react';
 
 interface ExportActionsProps {
     targetId: string;
     userName: string;
     userEmail: string;
+    shareCode?: string | null;
 }
 
-export function ExportActions({ targetId, userName, userEmail }: ExportActionsProps) {
+export function ExportActions({ userName, shareCode }: ExportActionsProps) {
     const [isCopying, setIsCopying] = useState(false);
-    const [isEmailing, setIsEmailing] = useState(false);
-    const [emailStatus, setEmailStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [isSharing, setIsSharing] = useState(false);
+
+    const shareUrl = shareCode
+        ? `${window.location.origin}/s/${shareCode}`
+        : window.location.href;
 
     const handleCopyLink = async () => {
         setIsCopying(true);
         try {
-            const currentUrl = window.location.href;
-            await navigator.clipboard.writeText(currentUrl);
-        } catch (error) {
-            console.error("Failed to copy link:", error);
-            alert('Failed to copy link. Please try again.');
+            await navigator.clipboard.writeText(shareUrl);
+        } catch {
+            alert('링크 복사에 실패했습니다. 다시 시도해주세요.');
         } finally {
             setTimeout(() => setIsCopying(false), 2000);
         }
     };
 
-    const handleEmailSend = async () => {
-        if (!userEmail) {
-            alert("No email address provided during registration.");
-            return;
-        }
-
-        setIsEmailing(true);
-        setEmailStatus('idle');
-
+    const handleShare = async () => {
+        setIsSharing(true);
         try {
-            const env = (import.meta as any).env;
-            const serviceId = env.VITE_EMAILJS_SERVICE_ID || 'default_service';
-            const templateId = env.VITE_EMAILJS_TEMPLATE_ID || 'default_template';
-            const publicKey = env.VITE_EMAILJS_PUBLIC_KEY || 'default_key';
-
-            // Send the exact URL back to the user
-            const currentUrl = window.location.href;
-
-            const templateParams = {
-                to_name: userName,
-                to_email: userEmail,
-                message: `Your K-REBORN Full Script is ready. You can view your personal identity report anytime by clicking the link below:\n\n${currentUrl}`,
-            };
-
-            await emailjs.send(serviceId, templateId, templateParams, publicKey);
-            setEmailStatus('success');
-        } catch (error) {
-            console.error("Email sending failed:", error);
-            setEmailStatus('error');
+            if (navigator.share) {
+                await navigator.share({
+                    title: `${userName}의 K-REBORN 정체성`,
+                    text: '나의 한국 평행우주 정체성을 확인해봐! 사주로 만든 한국 이름이야 🇰🇷',
+                    url: shareUrl,
+                });
+            } else {
+                await navigator.clipboard.writeText(shareUrl);
+                alert('링크가 복사됐어요! 친구에게 공유해보세요 🔗');
+            }
+        } catch (err: any) {
+            if (err?.name !== 'AbortError') {
+                console.error('Share failed:', err);
+            }
         } finally {
-            setIsEmailing(false);
-            setTimeout(() => setEmailStatus('idle'), 3000);
+            setIsSharing(false);
         }
     };
 
     return (
-        <div className="flex flex-col gap-3 mt-8 p-4 rounded-lg export-actions-container" style={{ border: '1px solid rgba(201,169,110,0.15)', background: 'rgba(255,255,255,0.02)' }}>
+        <div className="flex flex-col gap-3 mt-8 p-4 rounded-lg export-actions-container"
+            style={{ border: '1px solid rgba(201,169,110,0.15)', background: 'rgba(255,255,255,0.02)' }}>
             <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', textAlign: 'center' }}>
                 SHARE YOUR IDENTITY
             </p>
@@ -81,24 +70,24 @@ export function ExportActions({ targetId, userName, userEmail }: ExportActionsPr
                         {isCopying ? '✅' : '🔗'}
                     </span>
                     <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px' }}>
-                        {isCopying ? 'Link Copied!' : 'Copy Link'}
+                        {isCopying ? '복사됐어요!' : 'Copy Link'}
                     </span>
                 </motion.button>
 
                 <motion.button
-                    onClick={handleEmailSend}
-                    disabled={isEmailing}
+                    onClick={handleShare}
+                    disabled={isSharing}
                     className="flex-1 flex flex-col items-center justify-center py-3 rounded"
                     style={{
                         background: 'linear-gradient(135deg, rgba(201,169,110,0.2), rgba(201,169,110,0.05))',
-                        border: '1px solid rgba(201,169,110,0.3)', color: '#c9a96e', cursor: isEmailing ? 'wait' : 'pointer'
+                        border: '1px solid rgba(201,169,110,0.3)', color: '#c9a96e', cursor: isSharing ? 'default' : 'pointer'
                     }}
-                    whileTap={!isEmailing ? { scale: 0.97 } : {}}>
+                    whileTap={!isSharing ? { scale: 0.97 } : {}}>
                     <span style={{ fontSize: '18px', marginBottom: 4 }}>
-                        {emailStatus === 'success' ? '✅' : emailStatus === 'error' ? '❌' : '✉️'}
+                        {isSharing ? '⏳' : '↗️'}
                     </span>
                     <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px' }}>
-                        {isEmailing ? 'Sending...' : emailStatus === 'success' ? 'Sent!' : emailStatus === 'error' ? 'Failed' : 'Send to Email'}
+                        친구에게 공유하기
                     </span>
                 </motion.button>
             </div>
