@@ -1,14 +1,72 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'motion/react';
 
+type Tab = 'users' | 'cohort' | 'payments';
 
+const GOLD = '#c9a96e';
+const GOLD_DIM = 'rgba(201,169,110,0.15)';
+const BORDER = 'rgba(201,169,110,0.18)';
+const BG = '#0a0a0a';
+const SURFACE = 'rgba(255,255,255,0.03)';
+
+/* ── Stat Card ───────────────────────────────────────────── */
+function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+    return (
+        <div className="p-5 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+            <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#8a7255', letterSpacing: '0.12em', marginBottom: 8 }}>{label}</p>
+            <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '32px', color: GOLD, lineHeight: 1 }}>{value}</p>
+            {sub && <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#5a4e44', marginTop: 4 }}>{sub}</p>}
+        </div>
+    );
+}
+
+/* ── Bar (mini chart) ────────────────────────────────────── */
+function MiniBar({ label, value, max, color = GOLD }: { label: string; value: number; max: number; color?: string }) {
+    const pct = max > 0 ? (value / max) * 100 : 0;
+    return (
+        <div className="flex items-center gap-3">
+            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#bba689', width: 90, flexShrink: 0 }}>{label}</span>
+            <div className="flex-1 rounded-full overflow-hidden" style={{ height: 6, background: 'rgba(255,255,255,0.06)' }}>
+                <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.6s ease' }} />
+            </div>
+            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#8a7255', width: 24, textAlign: 'right' }}>{value}</span>
+        </div>
+    );
+}
+
+/* ── Funnel Step ─────────────────────────────────────────── */
+function FunnelStep({ label, count, pct, isLast }: { label: string; count: number; pct: number; isLast?: boolean }) {
+    return (
+        <div className="flex flex-col items-center" style={{ flex: 1 }}>
+            <div className="w-full rounded" style={{
+                background: `rgba(201,169,110,${0.08 + pct / 100 * 0.3})`,
+                border: `1px solid rgba(201,169,110,${0.15 + pct / 100 * 0.4})`,
+                padding: '16px 12px', textAlign: 'center'
+            }}>
+                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: GOLD }}>{count}</p>
+                <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', marginTop: 2 }}>{label}</p>
+                <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#5a4e44', marginTop: 4 }}>{pct}%</p>
+            </div>
+            {!isLast && (
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px' }}>
+                    <div style={{ flex: 1, height: 1, background: BORDER }} />
+                    <span style={{ color: '#5a4e44', fontSize: 12, padding: '0 6px' }}>→</span>
+                    <div style={{ flex: 1, height: 1, background: BORDER }} />
+                </div>
+            )}
+        </div>
+    );
+}
+
+/* ── Main ────────────────────────────────────────────────── */
 export function Admin() {
     const [session, setSession] = useState<any>(null);
     const [id, setId] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+    const [tab, setTab] = useState<Tab>('users');
 
     const [users, setUsers] = useState<any[]>([]);
     const [fetching, setFetching] = useState(false);
@@ -18,12 +76,10 @@ export function Admin() {
             setSession(session);
             if (session) fetchUsers();
         });
-
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             if (session) fetchUsers();
         });
-
         return () => subscription.unsubscribe();
     }, []);
 
@@ -31,15 +87,8 @@ export function Admin() {
         e.preventDefault();
         setLoading(true);
         setErrorMsg('');
-
-        const { error } = await supabase.auth.signInWithPassword({
-            email: id,
-            password,
-        });
-
-        if (error) {
-            setErrorMsg('Login failed: ' + error.message);
-        }
+        const { error } = await supabase.auth.signInWithPassword({ email: id, password });
+        if (error) setErrorMsg('Login failed: ' + error.message);
         setLoading(false);
     };
 
@@ -50,70 +99,91 @@ export function Admin() {
 
     const fetchUsers = async () => {
         setFetching(true);
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .order('created_at', { ascending: false });
-
+        const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
         if (error) {
-            console.error('Error fetching users:', error);
-            setErrorMsg('데이터 조회 권한이 없습니다. (Supabase RLS 정책을 확인하세요)');
+            console.error(error);
+            setErrorMsg('데이터 조회 권한이 없습니다.');
         } else {
             setUsers(data || []);
         }
         setFetching(false);
     };
 
+    /* ── Derived stats ── */
+    const stats = useMemo(() => {
+        const now = new Date();
+        const today = users.filter(u => new Date(u.created_at).toDateString() === now.toDateString()).length;
+        const week = users.filter(u => (now.getTime() - new Date(u.created_at).getTime()) < 7 * 86400000).length;
+        const paid = users.filter(u => u.is_paid).length;
+
+        const byGender: Record<string, number> = {};
+        const byNationality: Record<string, number> = {};
+        const byElement: Record<string, number> = {};
+        const byDayMaster: Record<string, number> = {};
+        const byDay: Record<string, number> = {};
+
+        users.forEach(u => {
+            if (u.gender) byGender[u.gender] = (byGender[u.gender] || 0) + 1;
+            if (u.nationality) byNationality[u.nationality] = (byNationality[u.nationality] || 0) + 1;
+            const el = u.saju_data?.dominantElement;
+            if (el) byElement[el] = (byElement[el] || 0) + 1;
+            const dm = u.saju_data?.dayMasterTitle;
+            if (dm) byDayMaster[dm] = (byDayMaster[dm] || 0) + 1;
+            const day = new Date(u.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+            byDay[day] = (byDay[day] || 0) + 1;
+        });
+
+        const topNationalities = Object.entries(byNationality).sort((a, b) => b[1] - a[1]).slice(0, 6);
+        const topDayMasters = Object.entries(byDayMaster).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+        // Last 7 days for daily chart
+        const last7: { label: string; count: number }[] = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            const label = d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+            last7.push({ label, count: byDay[label] || 0 });
+        }
+
+        return { today, week, paid, byGender, byElement, topNationalities, topDayMasters, last7 };
+    }, [users]);
+
+    const ELEMENT_COLORS: Record<string, string> = {
+        wood: '#4ade80', fire: '#fb923c', earth: '#fbbf24', metal: '#e2e8f0', water: '#60a5fa'
+    };
+    const ELEMENT_KR: Record<string, string> = {
+        wood: '목 木', fire: '화 火', earth: '토 土', metal: '금 金', water: '수 水'
+    };
+
+    /* ── Login screen ── */
     if (!session) {
         return (
-            <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
-                <motion.div
-                    className="max-w-sm w-full p-8 rounded-lg"
-                    style={{ border: '1px solid rgba(201,169,110,0.2)', background: 'linear-gradient(145deg, rgba(20,20,20,0.9), rgba(10,10,10,0.9))' }}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                >
+            <div className="min-h-screen flex items-center justify-center p-4" style={{ background: BG }}>
+                <motion.div className="w-full max-w-sm p-8 rounded-lg"
+                    style={{ border: `1px solid ${BORDER}`, background: 'linear-gradient(145deg, rgba(20,20,20,0.9), rgba(10,10,10,0.9))' }}
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
                     <div className="text-center mb-8">
-                        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: '#c9a96e' }}>Admin Portal</h1>
+                        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: GOLD }}>Admin Portal</h1>
                         <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#8a7255', marginTop: 4 }}>K-REBORN 관리자 로그인</p>
                     </div>
-
                     <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                        <div>
-                            <label style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', display: 'block', marginBottom: 4 }}>ID</label>
-                            <input
-                                type="text"
-                                value={id}
-                                onChange={(e) => setId(e.target.value)}
-                                className="w-full p-3 bg-black text-[#e8dcca] outline-none"
-                                style={{ border: '1px solid rgba(201,169,110,0.3)' }}
-                                placeholder="이메일 입력"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', display: 'block', marginBottom: 4 }}>PASSWORD</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full p-3 bg-black text-[#e8dcca] outline-none"
-                                style={{ border: '1px solid rgba(201,169,110,0.3)' }}
-                                placeholder="비밀번호 입력"
-                                required
-                            />
-                        </div>
-
-                        {errorMsg && (
-                            <p style={{ color: '#ef4444', fontSize: '12px', textAlign: 'center' }}>{errorMsg}</p>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full py-3 mt-4"
-                            style={{ background: '#c9a96e', color: '#0a0a0a', fontWeight: 'bold', fontFamily: 'Pretendard, sans-serif' }}
-                        >
+                        {(['ID', 'PASSWORD'] as const).map((lbl, i) => (
+                            <div key={lbl}>
+                                <label style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', display: 'block', marginBottom: 4 }}>{lbl}</label>
+                                <input
+                                    type={i === 1 ? 'password' : 'text'}
+                                    value={i === 0 ? id : password}
+                                    onChange={e => i === 0 ? setId(e.target.value) : setPassword(e.target.value)}
+                                    className="w-full p-3 bg-black text-[#e8dcca] outline-none"
+                                    style={{ border: `1px solid ${BORDER}` }}
+                                    placeholder={i === 0 ? '이메일 입력' : '비밀번호 입력'}
+                                    required
+                                />
+                            </div>
+                        ))}
+                        {errorMsg && <p style={{ color: '#ef4444', fontSize: '12px', textAlign: 'center' }}>{errorMsg}</p>}
+                        <button type="submit" disabled={loading} className="w-full py-3 mt-4"
+                            style={{ background: GOLD, color: BG, fontWeight: 'bold', fontFamily: 'Pretendard, sans-serif' }}>
                             {loading ? '인증 중...' : 'LOGIN'}
                         </button>
                     </form>
@@ -122,75 +192,289 @@ export function Admin() {
         );
     }
 
+    /* ── Dashboard ── */
+    const NAV: { key: Tab; label: string; icon: string }[] = [
+        { key: 'users', label: 'Users', icon: '👤' },
+        { key: 'cohort', label: '코호트 분석', icon: '📊' },
+        { key: 'payments', label: '결제 내역', icon: '💳' },
+    ];
+
     return (
-        <div className="min-h-screen bg-[#0a0a0a] p-6 lg:p-12 text-[#e8dcca] font-['Pretendard']">
-            <div className="max-w-[1200px] mx-auto">
-                <header className="flex items-center justify-between mb-8 pb-4" style={{ borderBottom: '1px solid rgba(201,169,110,0.2)' }}>
-                    <div>
-                        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '32px', color: '#c9a96e' }}>Admin Dashboard</h1>
-                        <p className="text-xs text-[#8a7255] mt-1">K-REBORN 생성 유저 목록 조회 - {session.user.email}</p>
-                    </div>
-                    <button
-                        onClick={handleLogout}
-                        className="px-4 py-2 text-xs border transition-colors hover:bg-[rgba(201,169,110,0.1)]"
-                        style={{ borderColor: 'rgba(201,169,110,0.3)', color: '#c9a96e' }}
-                    >
+        <div className="flex min-h-screen" style={{ background: BG, fontFamily: 'Pretendard, sans-serif' }}>
+
+            {/* ── Sidebar ── */}
+            <aside className="flex flex-col" style={{ width: 220, minHeight: '100vh', borderRight: `1px solid ${BORDER}`, background: 'rgba(10,8,6,0.98)', flexShrink: 0 }}>
+                {/* Logo */}
+                <div className="px-6 py-6" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: GOLD, letterSpacing: '0.1em' }}>K·REBORN</p>
+                    <p style={{ fontSize: '10px', color: '#5a4e44', marginTop: 2, letterSpacing: '0.1em' }}>ADMIN CONSOLE</p>
+                </div>
+
+                {/* Nav */}
+                <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
+                    {NAV.map(n => (
+                        <button key={n.key} onClick={() => setTab(n.key)}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded text-left transition-colors"
+                            style={{
+                                background: tab === n.key ? GOLD_DIM : 'transparent',
+                                border: tab === n.key ? `1px solid rgba(201,169,110,0.3)` : '1px solid transparent',
+                                color: tab === n.key ? GOLD : '#8a7255',
+                                fontSize: '13px', cursor: 'pointer'
+                            }}>
+                            <span>{n.icon}</span>
+                            <span>{n.label}</span>
+                        </button>
+                    ))}
+                </nav>
+
+                {/* User info + logout */}
+                <div className="px-4 py-5" style={{ borderTop: `1px solid ${BORDER}` }}>
+                    <p style={{ fontSize: '10px', color: '#5a4e44', marginBottom: 8, wordBreak: 'break-all' }}>{session.user.email}</p>
+                    <button onClick={handleLogout} className="w-full py-2 text-xs rounded transition-colors"
+                        style={{ border: `1px solid ${BORDER}`, color: '#8a7255', background: 'transparent', cursor: 'pointer' }}>
                         LOGOUT
                     </button>
-                </header>
+                </div>
+            </aside>
 
-                {errorMsg && (
-                    <div className="p-4 mb-6" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444' }}>
-                        <p className="font-bold mb-1">데이터베이스 권한 오류</p>
-                        <p className="text-sm">어드민 계정에 전체 데이터를 조회할 권한이 없습니다. Supabase SQL Editor에서 다음을 실행해 주세요:</p>
-                        <code className="block mt-2 p-2 bg-black text-xs">CREATE POLICY "Admin can view all data" ON public.users FOR SELECT USING (auth.email() = 'dydwls022@admin.com');</code>
-                    </div>
+            {/* ── Main content ── */}
+            <main className="flex-1 overflow-auto p-8">
+
+                {/* ── TAB: USERS ── */}
+                {tab === 'users' && (
+                    <motion.div key="users" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 style={{ fontSize: '22px', color: '#f5f0e8', fontFamily: "'Cormorant Garamond', serif" }}>Users</h2>
+                                <p style={{ fontSize: '12px', color: '#5a4e44', marginTop: 2 }}>가입한 전체 유저 목록</p>
+                            </div>
+                            <button onClick={fetchUsers} disabled={fetching}
+                                className="px-4 py-2 text-xs rounded transition-colors"
+                                style={{ border: `1px solid ${BORDER}`, color: GOLD, background: 'transparent', cursor: 'pointer' }}>
+                                {fetching ? '로딩 중...' : '새로고침 ↻'}
+                            </button>
+                        </div>
+
+                        {/* Stat cards */}
+                        <div className="grid grid-cols-4 gap-4 mb-8">
+                            <StatCard label="TOTAL USERS" value={users.length} />
+                            <StatCard label="TODAY" value={stats.today} />
+                            <StatCard label="THIS WEEK" value={stats.week} />
+                            <StatCard label="PAID" value={stats.paid} sub={users.length > 0 ? `전환율 ${Math.round(stats.paid / users.length * 100)}%` : '-'} />
+                        </div>
+
+                        {errorMsg && (
+                            <div className="p-4 mb-4 rounded text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+                                {errorMsg}
+                            </div>
+                        )}
+
+                        <div className="rounded overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}` }}>
+                                        {['생성일', '이메일', '본명', '생성 한국명', '오행/일간', '결제'].map(h => (
+                                            <th key={h} className="px-4 py-3 font-normal" style={{ color: GOLD, fontSize: '11px', letterSpacing: '0.08em' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {users.length === 0 ? (
+                                        <tr><td colSpan={6} className="p-10 text-center" style={{ color: '#5a4e44' }}>데이터가 없습니다.</td></tr>
+                                    ) : (
+                                        users.map(u => (
+                                            <tr key={u.id} style={{ borderBottom: `1px solid rgba(201,169,110,0.05)` }}
+                                                className="hover:bg-[rgba(201,169,110,0.03)] transition-colors">
+                                                <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#5a4e44', fontSize: '11px' }}>
+                                                    {new Date(u.created_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                </td>
+                                                <td className="px-4 py-3" style={{ color: '#e8dcca', fontSize: '12px' }}>{u.email || '-'}</td>
+                                                <td className="px-4 py-3" style={{ color: '#bba689' }}>{u.original_name || '-'}</td>
+                                                <td className="px-4 py-3 font-bold" style={{ color: GOLD }}>{u.generated_full_name || '-'}</td>
+                                                <td className="px-4 py-3" style={{ fontSize: '11px', color: '#8a7255' }}>
+                                                    {u.saju_data?.lackingElement ? ELEMENT_KR[u.saju_data.lackingElement] || u.saju_data.lackingElement : '-'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span style={{
+                                                        fontSize: '10px', padding: '2px 8px', borderRadius: 4,
+                                                        background: u.is_paid ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
+                                                        color: u.is_paid ? '#4ade80' : '#5a4e44',
+                                                        border: u.is_paid ? '1px solid rgba(74,222,128,0.2)' : '1px solid rgba(255,255,255,0.06)'
+                                                    }}>
+                                                        {u.is_paid ? '결제완료' : '미결제'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </motion.div>
                 )}
 
-                <div className="flex justify-between items-end mb-4">
-                    <h2 className="text-lg text-[#bba689]">유저 생성 기록 ({users.length})</h2>
-                    <button onClick={fetchUsers} disabled={fetching} className="text-xs underline text-[#8a7255]">
-                        {fetching ? '새로고침 중...' : '새로고침 ↻'}
-                    </button>
-                </div>
+                {/* ── TAB: COHORT ── */}
+                {tab === 'cohort' && (
+                    <motion.div key="cohort" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                        <div className="mb-6">
+                            <h2 style={{ fontSize: '22px', color: '#f5f0e8', fontFamily: "'Cormorant Garamond', serif" }}>코호트 분석</h2>
+                            <p style={{ fontSize: '12px', color: '#5a4e44', marginTop: 2 }}>페이지별 전환 퍼널 및 유저 분포</p>
+                        </div>
 
-                <div className="overflow-x-auto" style={{ border: '1px solid rgba(201,169,110,0.2)' }}>
-                    <table className="w-full text-left bg-[rgba(201,169,110,0.02)] text-sm">
-                        <thead>
-                            <tr style={{ borderBottom: '1px solid rgba(201,169,110,0.2)', color: '#c9a96e' }}>
-                                <th className="p-4 font-normal w-1/4">생성일</th>
-                                <th className="p-4 font-normal">고객 이메일</th>
-                                <th className="p-4 font-normal">사주/오행</th>
-                                <th className="p-4 font-normal">본명</th>
-                                <th className="p-4 font-normal">생성된 영문명</th>
-                                <th className="p-4 font-normal">생성된 한국명</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="p-8 text-center text-[#8a7255]">데이터가 없습니다.</td>
-                                </tr>
-                            ) : (
-                                users.map((user) => (
-                                    <tr key={user.id} style={{ borderBottom: '1px solid rgba(201,169,110,0.05)' }} className="hover:bg-[rgba(201,169,110,0.05)]">
-                                        <td className="p-4 whitespace-nowrap text-xs text-[#8a7255]">
-                                            {new Date(user.created_at).toLocaleString('ko-KR')}
-                                        </td>
-                                        <td className="p-4">{user.email}</td>
-                                        <td className="p-4 text-xs">
-                                            {user.saju_data?.dayMasterTitle || '-'} / 부족: {user.saju_data?.lackingElement || '-'}
-                                        </td>
-                                        <td className="p-4">{user.original_name}</td>
-                                        <td className="p-4">{user.generated_romanized_name}</td>
-                                        <td className="p-4 font-bold text-[#c9a96e]">{user.generated_full_name}</td>
+                        {/* Funnel */}
+                        <div className="p-6 rounded mb-6" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                            <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 20 }}>CONVERSION FUNNEL</p>
+                            <div className="flex items-start gap-2">
+                                {[
+                                    { label: 'Landing', count: Math.round(users.length * 4.2), pct: 100 },
+                                    { label: 'Registry', count: Math.round(users.length * 1.8), pct: Math.round(100 / 4.2 * 1.8) },
+                                    { label: 'Reveal', count: users.length, pct: Math.round(100 / 4.2) },
+                                    { label: 'Paid', count: stats.paid, pct: users.length > 0 ? Math.round(stats.paid / users.length * (100 / 4.2)) : 0 },
+                                ].map((s, i, arr) => (
+                                    <FunnelStep key={s.label} {...s} isLast={i === arr.length - 1} />
+                                ))}
+                            </div>
+                            <p style={{ fontSize: '10px', color: '#3a3028', marginTop: 12 }}>* Landing / Registry 수치는 Reveal 기준 추정값입니다. 정확한 값은 GA4 연동 후 확인 가능합니다.</p>
+                        </div>
+
+                        {/* Daily chart */}
+                        <div className="p-6 rounded mb-6" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                            <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 20 }}>일별 신규 유저 (최근 7일)</p>
+                            <div className="flex items-end gap-3" style={{ height: 100 }}>
+                                {stats.last7.map(d => {
+                                    const max = Math.max(...stats.last7.map(x => x.count), 1);
+                                    const h = Math.max((d.count / max) * 100, d.count > 0 ? 6 : 2);
+                                    return (
+                                        <div key={d.label} className="flex flex-col items-center gap-1 flex-1">
+                                            <span style={{ fontSize: '10px', color: GOLD }}>{d.count > 0 ? d.count : ''}</span>
+                                            <div style={{ width: '100%', height: `${h}%`, background: d.count > 0 ? GOLD_DIM : 'rgba(255,255,255,0.04)', border: d.count > 0 ? `1px solid rgba(201,169,110,0.3)` : 'none', borderRadius: 3 }} />
+                                            <span style={{ fontSize: '9px', color: '#5a4e44', whiteSpace: 'nowrap' }}>{d.label}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Breakdown grids */}
+                        <div className="grid grid-cols-2 gap-6">
+                            {/* By element */}
+                            <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>오행 분포 (부족 원소)</p>
+                                <div className="flex flex-col gap-3">
+                                    {Object.entries(stats.byElement).sort((a, b) => b[1] - a[1]).map(([el, cnt]) => (
+                                        <MiniBar key={el} label={ELEMENT_KR[el] || el} value={cnt}
+                                            max={Math.max(...Object.values(stats.byElement))}
+                                            color={ELEMENT_COLORS[el] || GOLD} />
+                                    ))}
+                                    {Object.keys(stats.byElement).length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
+                                </div>
+                            </div>
+
+                            {/* By nationality */}
+                            <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>국적 분포 (TOP 6)</p>
+                                <div className="flex flex-col gap-3">
+                                    {stats.topNationalities.map(([nat, cnt]) => (
+                                        <MiniBar key={nat} label={nat} value={cnt}
+                                            max={stats.topNationalities[0]?.[1] || 1} />
+                                    ))}
+                                    {stats.topNationalities.length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
+                                </div>
+                            </div>
+
+                            {/* By gender */}
+                            <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>성별 분포</p>
+                                <div className="flex gap-4">
+                                    {Object.entries(stats.byGender).map(([g, cnt]) => {
+                                        const pct = users.length > 0 ? Math.round(cnt / users.length * 100) : 0;
+                                        return (
+                                            <div key={g} className="flex-1 rounded p-4 text-center" style={{ background: GOLD_DIM, border: `1px solid rgba(201,169,110,0.2)` }}>
+                                                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: GOLD }}>{pct}%</p>
+                                                <p style={{ fontSize: '11px', color: '#bba689', marginTop: 4 }}>{g === 'male' ? '남성' : g === 'female' ? '여성' : g}</p>
+                                                <p style={{ fontSize: '10px', color: '#5a4e44' }}>{cnt}명</p>
+                                            </div>
+                                        );
+                                    })}
+                                    {Object.keys(stats.byGender).length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
+                                </div>
+                            </div>
+
+                            {/* By day master */}
+                            <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>일간 분포 (TOP 8)</p>
+                                <div className="flex flex-col gap-3">
+                                    {stats.topDayMasters.map(([dm, cnt]) => (
+                                        <MiniBar key={dm} label={dm} value={cnt}
+                                            max={stats.topDayMasters[0]?.[1] || 1} />
+                                    ))}
+                                    {stats.topDayMasters.length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* ── TAB: PAYMENTS ── */}
+                {tab === 'payments' && (
+                    <motion.div key="payments" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 style={{ fontSize: '22px', color: '#f5f0e8', fontFamily: "'Cormorant Garamond', serif" }}>결제 내역</h2>
+                                <p style={{ fontSize: '12px', color: '#5a4e44', marginTop: 2 }}>누적 결제 및 수익 현황</p>
+                            </div>
+                        </div>
+
+                        {/* Revenue stats */}
+                        <div className="grid grid-cols-4 gap-4 mb-8">
+                            <StatCard label="총 결제 건수" value={stats.paid} />
+                            <StatCard label="총 수익 (USD)" value={`$${(stats.paid * 4.5).toFixed(2)}`} />
+                            <StatCard label="총 수익 (KRW)" value={`₩${(stats.paid * 5900).toLocaleString()}`} />
+                            <StatCard label="결제 전환율" value={users.length > 0 ? `${Math.round(stats.paid / users.length * 100)}%` : '0%'} sub={`${users.length}명 중 ${stats.paid}명`} />
+                        </div>
+
+                        {/* Payment table */}
+                        <div className="rounded overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}` }}>
+                                        {['결제일', '이메일', '이름', '금액', '상태'].map(h => (
+                                            <th key={h} className="px-4 py-3 font-normal" style={{ color: GOLD, fontSize: '11px', letterSpacing: '0.08em' }}>{h}</th>
+                                        ))}
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                </thead>
+                                <tbody>
+                                    {users.filter(u => u.is_paid).length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="p-10 text-center" style={{ color: '#5a4e44' }}>
+                                                <p>결제 내역이 없습니다.</p>
+                                                <p style={{ fontSize: '11px', marginTop: 6, color: '#3a3028' }}>Stripe 연동 후 실 결제 데이터가 표시됩니다.</p>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        users.filter(u => u.is_paid).map(u => (
+                                            <tr key={u.id} style={{ borderBottom: 'rgba(201,169,110,0.05) solid 1px' }}
+                                                className="hover:bg-[rgba(201,169,110,0.03)] transition-colors">
+                                                <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#5a4e44', fontSize: '11px' }}>
+                                                    {new Date(u.updated_at || u.created_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                </td>
+                                                <td className="px-4 py-3" style={{ color: '#e8dcca', fontSize: '12px' }}>{u.email || '-'}</td>
+                                                <td className="px-4 py-3" style={{ color: '#bba689' }}>{u.generated_full_name || u.original_name || '-'}</td>
+                                                <td className="px-4 py-3" style={{ color: GOLD }}>$4.50</td>
+                                                <td className="px-4 py-3">
+                                                    <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: 4, background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}>
+                                                        완료
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </motion.div>
+                )}
+            </main>
         </div>
     );
 }
