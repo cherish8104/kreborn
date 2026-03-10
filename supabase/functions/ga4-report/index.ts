@@ -139,8 +139,49 @@ Deno.serve(async (req) => {
       },
     });
 
+    // ── 4. 유입 채널 그룹 ───────────────────────────────────────────────
+    const channelData = await ga4Report(propertyId, token, {
+      dimensions: [{ name: 'sessionDefaultChannelGrouping' }],
+      metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
+      dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
+      orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+    });
+
+    // ── 5. 소스/매체 (TOP 15) ────────────────────────────────────────────
+    const sourceMediumData = await ga4Report(propertyId, token, {
+      dimensions: [{ name: 'sessionSourceMedium' }],
+      metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
+      dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
+      orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+      limit: 15,
+    });
+
+    // ── 6. 국가별 유저 (TOP 8) ───────────────────────────────────────────
+    const countryData = await ga4Report(propertyId, token, {
+      dimensions: [{ name: 'country' }],
+      metrics: [{ name: 'activeUsers' }, { name: 'sessions' }],
+      dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
+      orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+      limit: 8,
+    });
+
+    // ── 7. 디바이스 카테고리 ─────────────────────────────────────────────
+    const deviceData = await ga4Report(propertyId, token, {
+      dimensions: [{ name: 'deviceCategory' }],
+      metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
+      dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
+    });
+
     return new Response(
-      JSON.stringify({ funnel: funnelData, daily: dailyData, landing: landingData }),
+      JSON.stringify({
+        funnel: funnelData,
+        daily: dailyData,
+        landing: landingData,
+        channel: channelData,
+        sourceMedium: sourceMediumData,
+        country: countryData,
+        device: deviceData,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {

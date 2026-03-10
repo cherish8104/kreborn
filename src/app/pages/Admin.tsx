@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'motion/react';
 
-type Tab = 'users' | 'cohort' | 'payments';
+type Tab = 'users' | 'cohort' | 'traffic' | 'payments';
 
 const GOLD = '#c9a96e';
 const GOLD_DIM = 'rgba(201,169,110,0.15)';
@@ -76,9 +76,13 @@ export function Admin() {
         funnel: Record<string, number>;
         daily: { date: string; users: number }[];
         landingViews: number;
+        channel: { name: string; sessions: number; users: number }[];
+        sourceMedium: { name: string; sessions: number; users: number }[];
+        country: { name: string; users: number; sessions: number }[];
+        device: { name: string; sessions: number }[];
         loaded: boolean;
         error?: string;
-    }>({ funnel: {}, daily: [], landingViews: 0, loaded: false });
+    }>({ funnel: {}, daily: [], landingViews: 0, channel: [], sourceMedium: [], country: [], device: [], loaded: false });
 
     useEffect(() => {
         if (!supabase) return;
@@ -141,7 +145,27 @@ export function Admin() {
                 };
             });
             const landingViews = parseInt(data.landing?.rows?.[0]?.metricValues?.[0]?.value ?? '0', 10);
-            setGa4({ funnel, daily, landingViews, loaded: true });
+
+            const parseRows2 = (rows: any[], nameIdx = 0, v0 = 0, v1 = 1) =>
+                (rows ?? []).map((r: any) => ({
+                    name: r.dimensionValues[nameIdx].value,
+                    sessions: parseInt(r.metricValues[v0].value, 10),
+                    users: parseInt(r.metricValues[v1]?.value ?? '0', 10),
+                }));
+
+            const channel = parseRows2(data.channel?.rows);
+            const sourceMedium = parseRows2(data.sourceMedium?.rows);
+            const country = (data.country?.rows ?? []).map((r: any) => ({
+                name: r.dimensionValues[0].value,
+                users: parseInt(r.metricValues[0].value, 10),
+                sessions: parseInt(r.metricValues[1].value, 10),
+            }));
+            const device = (data.device?.rows ?? []).map((r: any) => ({
+                name: r.dimensionValues[0].value,
+                sessions: parseInt(r.metricValues[0].value, 10),
+            }));
+
+            setGa4({ funnel, daily, landingViews, channel, sourceMedium, country, device, loaded: true });
         } catch (e) {
             setGa4(prev => ({ ...prev, loaded: true, error: String(e) }));
         }
@@ -234,6 +258,7 @@ export function Admin() {
     const NAV: { key: Tab; label: string; icon: string }[] = [
         { key: 'users', label: 'Users', icon: '👤' },
         { key: 'cohort', label: '코호트 분석', icon: '📊' },
+        { key: 'traffic', label: '유입채널 분석', icon: '🌐' },
         { key: 'payments', label: '결제 내역', icon: '💳' },
     ];
 
@@ -494,6 +519,139 @@ export function Admin() {
                                     {stats.topDayMasters.length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
                                 </div>
                             </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* ── TAB: TRAFFIC ── */}
+                {tab === 'traffic' && (
+                    <motion.div key="traffic" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 style={{ fontSize: '22px', color: '#f5f0e8', fontFamily: "'Cormorant Garamond', serif" }}>유입채널 분석</h2>
+                                <p style={{ fontSize: '12px', color: '#5a4e44', marginTop: 2 }}>
+                                    {ga4.loaded && !ga4.error ? 'GA4 실데이터 · 최근 90일' : ga4.error ? `GA4 오류: ${ga4.error}` : 'GA4 로딩 중…'}
+                                </p>
+                            </div>
+                            <button onClick={fetchGA4} className="px-4 py-2 text-xs rounded"
+                                style={{ border: `1px solid ${BORDER}`, color: GOLD, background: 'transparent', cursor: 'pointer' }}>
+                                새로고침 ↻
+                            </button>
+                        </div>
+
+                        {/* 요약 stat cards */}
+                        {(() => {
+                            const totalSessions = ga4.channel.reduce((s, c) => s + c.sessions, 0);
+                            const topChannel = ga4.channel[0]?.name ?? '-';
+                            const topSource = ga4.sourceMedium[0]?.name ?? '-';
+                            const mobileDevice = ga4.device.find(d => d.name === 'mobile');
+                            const totalDevSessions = ga4.device.reduce((s, d) => s + d.sessions, 0);
+                            const mobilePct = totalDevSessions > 0 && mobileDevice
+                                ? Math.round(mobileDevice.sessions / totalDevSessions * 100) : 0;
+                            return (
+                                <div className="grid grid-cols-4 gap-4 mb-8">
+                                    <StatCard label="총 세션" value={totalSessions.toLocaleString()} />
+                                    <StatCard label="TOP 채널" value={topChannel} />
+                                    <StatCard label="TOP 소스" value={topSource.split(' / ')[0]} />
+                                    <StatCard label="모바일 비율" value={`${mobilePct}%`} sub={`데스크톱 ${100 - mobilePct}%`} />
+                                </div>
+                            );
+                        })()}
+
+                        <div className="grid grid-cols-2 gap-6 mb-6">
+                            {/* 채널 그룹 */}
+                            <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>채널 그룹</p>
+                                <div className="flex flex-col gap-3">
+                                    {ga4.channel.length === 0
+                                        ? <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음 (GA4 연동 확인)</p>
+                                        : ga4.channel.map(c => (
+                                            <MiniBar key={c.name} label={c.name} value={c.sessions}
+                                                max={ga4.channel[0]?.sessions || 1} />
+                                        ))}
+                                </div>
+                            </div>
+
+                            {/* 디바이스 + 국가 */}
+                            <div className="flex flex-col gap-4">
+                                {/* 디바이스 */}
+                                <div className="p-5 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                                    <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 12 }}>디바이스</p>
+                                    <div className="flex gap-3">
+                                        {ga4.device.map(d => {
+                                            const total = ga4.device.reduce((s, x) => s + x.sessions, 0) || 1;
+                                            const pct = Math.round(d.sessions / total * 100);
+                                            const icon = d.name === 'mobile' ? '📱' : d.name === 'tablet' ? '📟' : '🖥️';
+                                            return (
+                                                <div key={d.name} className="flex-1 rounded p-3 text-center"
+                                                    style={{ background: GOLD_DIM, border: `1px solid rgba(201,169,110,0.2)` }}>
+                                                    <p style={{ fontSize: '18px', marginBottom: 4 }}>{icon}</p>
+                                                    <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', color: GOLD }}>{pct}%</p>
+                                                    <p style={{ fontSize: '10px', color: '#bba689', marginTop: 2 }}>{d.name}</p>
+                                                </div>
+                                            );
+                                        })}
+                                        {ga4.device.length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
+                                    </div>
+                                </div>
+
+                                {/* 국가 TOP 5 */}
+                                <div className="p-5 rounded flex-1" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                                    <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 12 }}>국가 TOP 5</p>
+                                    <div className="flex flex-col gap-2">
+                                        {ga4.country.slice(0, 5).map(c => (
+                                            <MiniBar key={c.name} label={c.name} value={c.users}
+                                                max={ga4.country[0]?.users || 1} />
+                                        ))}
+                                        {ga4.country.length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 소스/매체 테이블 */}
+                        <div className="rounded overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+                            <div className="px-5 py-3" style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}` }}>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em' }}>소스 / 매체 (TOP 15)</p>
+                            </div>
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${BORDER}` }}>
+                                        {['소스 / 매체', '세션', '유저', '세션 비중'].map(h => (
+                                            <th key={h} className="px-4 py-3 font-normal"
+                                                style={{ color: GOLD, fontSize: '11px', letterSpacing: '0.08em' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {ga4.sourceMedium.length === 0
+                                        ? <tr><td colSpan={4} className="p-8 text-center" style={{ color: '#5a4e44' }}>데이터 없음</td></tr>
+                                        : (() => {
+                                            const totalSm = ga4.sourceMedium.reduce((s, r) => s + r.sessions, 0) || 1;
+                                            return ga4.sourceMedium.map((r, i) => (
+                                                <tr key={r.name} style={{ borderBottom: `1px solid rgba(201,169,110,0.05)` }}
+                                                    className="hover:bg-[rgba(201,169,110,0.03)] transition-colors">
+                                                    <td className="px-4 py-3" style={{ color: i === 0 ? GOLD : '#e8dcca', fontSize: '12px' }}>
+                                                        {r.name}
+                                                    </td>
+                                                    <td className="px-4 py-3" style={{ color: '#bba689' }}>{r.sessions.toLocaleString()}</td>
+                                                    <td className="px-4 py-3" style={{ color: '#8a7255' }}>{r.users.toLocaleString()}</td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
+                                                                <div style={{ width: `${Math.round(r.sessions / totalSm * 100)}%`, height: '100%', background: GOLD, borderRadius: 2 }} />
+                                                            </div>
+                                                            <span style={{ fontSize: '10px', color: '#5a4e44', width: 32, textAlign: 'right' }}>
+                                                                {Math.round(r.sessions / totalSm * 100)}%
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ));
+                                        })()
+                                    }
+                                </tbody>
+                            </table>
                         </div>
                     </motion.div>
                 )}
