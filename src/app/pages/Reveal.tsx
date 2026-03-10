@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { useUser } from '../store/UserContext';
 import { ResultCard } from '../components/ResultCard';
+import { trackViewPaywall, trackBeginCheckout, trackPurchase } from '../../lib/analytics';
 
 export function Reveal() {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export function Reveal() {
 
   useEffect(() => {
     if (!identity) { navigate('/registry'); return; }
-    const t = setTimeout(() => setShowPaywall(true), 2200);
+    const t = setTimeout(() => { setShowPaywall(true); trackViewPaywall(); }, 2200);
     return () => clearTimeout(t);
   }, [identity, navigate]);
 
@@ -38,7 +39,10 @@ export function Reveal() {
 
   const handlePay = () => {
     setPayStep('loading');
-    setTimeout(() => setPayStep('success'), 2000);
+    setTimeout(() => {
+      setPayStep('success');
+      trackPurchase({ transaction_id: `txn_${Date.now()}` });
+    }, 2000);
     setTimeout(() => { setIsPaid(true); navigate('/full-script'); }, 3800);
   };
 
@@ -220,7 +224,7 @@ export function Reveal() {
                         ))}
                       </div>
 
-                      <motion.button onClick={() => setPayStep('form')} className="w-full mb-3"
+                      <motion.button onClick={() => { trackBeginCheckout(); setPayStep('form'); }} className="w-full mb-3"
                         style={{
                           padding: '15px', fontFamily: 'Pretendard, sans-serif',
                           fontSize: '12px', letterSpacing: '0.15em', cursor: 'pointer',
