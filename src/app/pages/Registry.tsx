@@ -246,8 +246,8 @@ export function Registry() {
       };
 
       const shareCode = generateShareCode();
-      const userId = `${form.email}_${y}${m}${d}`;
-      saveUserGeneration(userId, form.email, form.name, identity.fullName, saju, shareCode, identity, userInputData);
+      const userId = crypto.randomUUID();
+      await saveUserGeneration(userId, form.email, form.name, identity.fullName, saju, shareCode, identity, userInputData);
 
       setUserInput(userInputData);
       setIdentity(identity);
