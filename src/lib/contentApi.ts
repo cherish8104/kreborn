@@ -68,7 +68,8 @@ export async function saveUserGeneration(
                 user_input_data: userInputData ?? null,
             });
 
-        if (error) console.error('[ContentDB] Error saving user generation', error.message);
+        if (error) console.error('[ContentDB] SAVE ERROR', error.code, error.message);
+        else console.log('[ContentDB] Saved OK, share_code:', shareCode);
     } catch (err) {
         console.error('[ContentDB] Exception saving user generation', err);
     }
@@ -83,7 +84,10 @@ export async function getUserByShareCode(shareCode: string) {
             .eq('share_code', shareCode)
             .single();
 
-        if (error || !data) return null;
+        if (error) {
+            console.error('[ContentDB] READ ERROR', error.code, error.message);
+            return null;
+        }
         return data;
     } catch (err) {
         console.error('[ContentDB] Error fetching shared result', err);
