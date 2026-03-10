@@ -22,13 +22,14 @@ export const router = createBrowserRouter([
           return { Component: FullScript };
         },
       },
-      {
-        path: '/admin',
-        lazy: async () => {
-          const { Admin } = await import('./pages/Admin');
-          return { Component: Admin };
-        },
-      },
     ],
+  },
+  {
+    // Admin은 MobileLayout 밖 — 풀 PC 해상도로 렌더링
+    path: '/admin',
+    lazy: async () => {
+      const { Admin } = await import('./pages/Admin');
+      return { Component: Admin };
+    },
   },
 ]);
