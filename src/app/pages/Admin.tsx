@@ -70,6 +70,7 @@ export function Admin() {
 
     const [users, setUsers] = useState<any[]>([]);
     const [fetching, setFetching] = useState(false);
+    const [ga4Fetching, setGa4Fetching] = useState(false);
 
     // GA4 연동 데이터
     const [ga4, setGa4] = useState<{
@@ -124,10 +125,13 @@ export function Admin() {
     };
 
     const fetchGA4 = async () => {
+        setGa4Fetching(true);
+        setGa4(prev => ({ ...prev, error: undefined }));
         try {
             const { data, error } = await supabase!.functions.invoke('ga4-report');
             if (error || data?.error) {
                 setGa4(prev => ({ ...prev, loaded: true, error: data?.error || String(error) }));
+                setGa4Fetching(false);
                 return;
             }
             // 퍼널 이벤트 카운트 파싱
@@ -168,6 +172,8 @@ export function Admin() {
             setGa4({ funnel, daily, landingViews, channel, sourceMedium, country, device, loaded: true });
         } catch (e) {
             setGa4(prev => ({ ...prev, loaded: true, error: String(e) }));
+        } finally {
+            setGa4Fetching(false);
         }
     };
 
@@ -388,10 +394,10 @@ export function Admin() {
                                         : 'GA4 데이터 로딩 중…'}
                                 </p>
                             </div>
-                            <button onClick={fetchGA4}
+                            <button onClick={fetchGA4} disabled={ga4Fetching}
                                 className="px-4 py-2 text-xs rounded"
-                                style={{ border: `1px solid ${BORDER}`, color: GOLD, background: 'transparent', cursor: 'pointer' }}>
-                                GA4 새로고침 ↻
+                                style={{ border: `1px solid ${BORDER}`, color: ga4Fetching ? '#5a4e44' : GOLD, background: 'transparent', cursor: ga4Fetching ? 'default' : 'pointer' }}>
+                                {ga4Fetching ? 'GA4 로딩 중…' : 'GA4 새로고침 ↻'}
                             </button>
                         </div>
 
@@ -533,9 +539,9 @@ export function Admin() {
                                     {ga4.loaded && !ga4.error ? 'GA4 실데이터 · 최근 90일' : ga4.error ? `GA4 오류: ${ga4.error}` : 'GA4 로딩 중…'}
                                 </p>
                             </div>
-                            <button onClick={fetchGA4} className="px-4 py-2 text-xs rounded"
-                                style={{ border: `1px solid ${BORDER}`, color: GOLD, background: 'transparent', cursor: 'pointer' }}>
-                                새로고침 ↻
+                            <button onClick={fetchGA4} disabled={ga4Fetching} className="px-4 py-2 text-xs rounded"
+                                style={{ border: `1px solid ${BORDER}`, color: ga4Fetching ? '#5a4e44' : GOLD, background: 'transparent', cursor: ga4Fetching ? 'default' : 'pointer' }}>
+                                {ga4Fetching ? '로딩 중…' : '새로고침 ↻'}
                             </button>
                         </div>
 
