@@ -128,7 +128,10 @@ export function Admin() {
         setGa4Fetching(true);
         setGa4(prev => ({ ...prev, error: undefined }));
         try {
-            const { data, error } = await supabase!.functions.invoke('ga4-report');
+            const { data: { session } } = await supabase!.auth.getSession();
+            const { data, error } = await supabase!.functions.invoke('ga4-report', {
+                headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+            });
             if (error || data?.error) {
                 setGa4(prev => ({ ...prev, loaded: true, error: data?.error || String(error) }));
                 setGa4Fetching(false);
