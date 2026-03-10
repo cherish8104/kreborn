@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'motion/react';
 
-const ADMIN_EMAIL = 'dydwls022@admin.com'; // Internal mapping for the ID
-const EXPECTED_ID = 'dydwls022';
 
 export function Admin() {
     const [session, setSession] = useState<any>(null);
@@ -34,14 +32,8 @@ export function Admin() {
         setLoading(true);
         setErrorMsg('');
 
-        if (id !== EXPECTED_ID) {
-            setErrorMsg('Invalid Admin ID.');
-            setLoading(false);
-            return;
-        }
-
         const { error } = await supabase.auth.signInWithPassword({
-            email: ADMIN_EMAIL,
+            email: id,
             password,
         });
 
@@ -95,7 +87,7 @@ export function Admin() {
                                 onChange={(e) => setId(e.target.value)}
                                 className="w-full p-3 bg-black text-[#e8dcca] outline-none"
                                 style={{ border: '1px solid rgba(201,169,110,0.3)' }}
-                                placeholder="어드민 아이디 입력"
+                                placeholder="이메일 입력"
                                 required
                             />
                         </div>
