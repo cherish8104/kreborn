@@ -71,35 +71,45 @@ export function Admin() {
     const [users, setUsers] = useState<any[]>([]);
     const [fetching, setFetching] = useState(false);
 
+    // GA4 연동 데이터
+    const [ga4, setGa4] = useState<{
+        funnel: Record<string, number>;
+        daily: { date: string; users: number }[];
+        landingViews: number;
+        loaded: boolean;
+        error?: string;
+    }>({ funnel: {}, daily: [], landingViews: 0, loaded: false });
+
     useEffect(() => {
+        if (!supabase) return;
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
-            if (session) fetchUsers();
+            if (session) { fetchUsers(); fetchGA4(); }
         });
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
-            if (session) fetchUsers();
+            if (session) { fetchUsers(); fetchGA4(); }
         });
         return () => subscription.unsubscribe();
     }, []);
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setLoading(true);
         setErrorMsg('');
-        const { error } = await supabase.auth.signInWithPassword({ email: id, password });
+        const { error } = await supabase!.auth.signInWithPassword({ email: id, password });
         if (error) setErrorMsg('Login failed: ' + error.message);
         setLoading(false);
     };
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
+        await supabase!.auth.signOut();
         setUsers([]);
     };
 
     const fetchUsers = async () => {
         setFetching(true);
-        const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase!.from('users').select('*').order('created_at', { ascending: false });
         if (error) {
             console.error(error);
             setErrorMsg('데이터 조회 권한이 없습니다.');
@@ -107,6 +117,34 @@ export function Admin() {
             setUsers(data || []);
         }
         setFetching(false);
+    };
+
+    const fetchGA4 = async () => {
+        try {
+            const { data, error } = await supabase!.functions.invoke('ga4-report');
+            if (error || data?.error) {
+                setGa4(prev => ({ ...prev, loaded: true, error: data?.error || String(error) }));
+                return;
+            }
+            // 퍼널 이벤트 카운트 파싱
+            const funnel: Record<string, number> = {};
+            for (const row of data.funnel?.rows ?? []) {
+                funnel[row.dimensionValues[0].value] = parseInt(row.metricValues[0].value, 10);
+            }
+            // 일별 활성 유저 파싱 (YYYYMMDD → M월 D일)
+            const daily = (data.daily?.rows ?? []).map((row: any) => {
+                const d = row.dimensionValues[0].value; // "20250310"
+                const dt = new Date(`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`);
+                return {
+                    date: dt.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+                    users: parseInt(row.metricValues[0].value, 10),
+                };
+            });
+            const landingViews = parseInt(data.landing?.rows?.[0]?.metricValues?.[0]?.value ?? '0', 10);
+            setGa4({ funnel, daily, landingViews, loaded: true });
+        } catch (e) {
+            setGa4(prev => ({ ...prev, loaded: true, error: String(e) }));
+        }
     };
 
     /* ── Derived stats ── */
@@ -316,43 +354,88 @@ export function Admin() {
                 {/* ── TAB: COHORT ── */}
                 {tab === 'cohort' && (
                     <motion.div key="cohort" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                        <div className="mb-6">
-                            <h2 style={{ fontSize: '22px', color: '#f5f0e8', fontFamily: "'Cormorant Garamond', serif" }}>코호트 분석</h2>
-                            <p style={{ fontSize: '12px', color: '#5a4e44', marginTop: 2 }}>페이지별 전환 퍼널 및 유저 분포</p>
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 style={{ fontSize: '22px', color: '#f5f0e8', fontFamily: "'Cormorant Garamond', serif" }}>코호트 분석</h2>
+                                <p style={{ fontSize: '12px', color: '#5a4e44', marginTop: 2 }}>
+                                    {ga4.loaded
+                                        ? ga4.error ? `GA4 오류: ${ga4.error}` : 'GA4 실데이터 연동'
+                                        : 'GA4 데이터 로딩 중…'}
+                                </p>
+                            </div>
+                            <button onClick={fetchGA4}
+                                className="px-4 py-2 text-xs rounded"
+                                style={{ border: `1px solid ${BORDER}`, color: GOLD, background: 'transparent', cursor: 'pointer' }}>
+                                GA4 새로고침 ↻
+                            </button>
                         </div>
 
-                        {/* Funnel */}
+                        {/* GA4 Funnel — 실데이터 */}
                         <div className="p-6 rounded mb-6" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-                            <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 20 }}>CONVERSION FUNNEL</p>
-                            <div className="flex items-start gap-2">
-                                {[
-                                    { label: 'Landing', count: Math.round(users.length * 4.2), pct: 100 },
-                                    { label: 'Registry', count: Math.round(users.length * 1.8), pct: Math.round(100 / 4.2 * 1.8) },
-                                    { label: 'Reveal', count: users.length, pct: Math.round(100 / 4.2) },
-                                    { label: 'Paid', count: stats.paid, pct: users.length > 0 ? Math.round(stats.paid / users.length * (100 / 4.2)) : 0 },
-                                ].map((s, i, arr) => (
-                                    <FunnelStep key={s.label} {...s} isLast={i === arr.length - 1} />
-                                ))}
+                            <div className="flex items-center gap-2 mb-5">
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em' }}>CONVERSION FUNNEL</p>
+                                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: 3, background: ga4.loaded && !ga4.error ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.05)', color: ga4.loaded && !ga4.error ? '#4ade80' : '#5a4e44', border: ga4.loaded && !ga4.error ? '1px solid rgba(74,222,128,0.2)' : `1px solid ${BORDER}` }}>
+                                    {ga4.loaded && !ga4.error ? 'GA4 LIVE' : '로딩 중'}
+                                </span>
                             </div>
-                            <p style={{ fontSize: '10px', color: '#3a3028', marginTop: 12 }}>* Landing / Registry 수치는 Reveal 기준 추정값입니다. 정확한 값은 GA4 연동 후 확인 가능합니다.</p>
+                            {(() => {
+                                const f = ga4.funnel;
+                                const landing = ga4.landingViews || (f['page_view'] ?? 0);
+                                const registry = f['begin_registration'] ?? 0;
+                                const reveal = f['complete_registration'] ?? 0;
+                                const paywall = f['view_paywall'] ?? 0;
+                                const checkout = f['begin_checkout'] ?? 0;
+                                const paid = f['purchase'] ?? 0;
+                                const base = landing || 1;
+                                const pct = (n: number) => Math.round((n / base) * 100);
+                                return (
+                                    <div className="flex items-start gap-2">
+                                        {[
+                                            { label: 'Landing', count: landing, pct: 100 },
+                                            { label: 'begin_reg', count: registry, pct: pct(registry) },
+                                            { label: 'complete_reg', count: reveal, pct: pct(reveal) },
+                                            { label: 'view_paywall', count: paywall, pct: pct(paywall) },
+                                            { label: 'checkout', count: checkout, pct: pct(checkout) },
+                                            { label: 'purchase', count: paid, pct: pct(paid) },
+                                        ].map((s, i, arr) => (
+                                            <FunnelStep key={s.label} {...s} isLast={i === arr.length - 1} />
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+                            {!ga4.loaded && (
+                                <p style={{ fontSize: '10px', color: '#3a3028', marginTop: 12 }}>* GA4 시크릿 설정 후 실데이터가 표시됩니다.</p>
+                            )}
                         </div>
 
-                        {/* Daily chart */}
+                        {/* 일별 활성 유저 — GA4 우선, fallback: Supabase */}
                         <div className="p-6 rounded mb-6" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-                            <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 20 }}>일별 신규 유저 (최근 7일)</p>
-                            <div className="flex items-end gap-3" style={{ height: 100 }}>
-                                {stats.last7.map(d => {
-                                    const max = Math.max(...stats.last7.map(x => x.count), 1);
-                                    const h = Math.max((d.count / max) * 100, d.count > 0 ? 6 : 2);
-                                    return (
-                                        <div key={d.label} className="flex flex-col items-center gap-1 flex-1">
-                                            <span style={{ fontSize: '10px', color: GOLD }}>{d.count > 0 ? d.count : ''}</span>
-                                            <div style={{ width: '100%', height: `${h}%`, background: d.count > 0 ? GOLD_DIM : 'rgba(255,255,255,0.04)', border: d.count > 0 ? `1px solid rgba(201,169,110,0.3)` : 'none', borderRadius: 3 }} />
-                                            <span style={{ fontSize: '9px', color: '#5a4e44', whiteSpace: 'nowrap' }}>{d.label}</span>
-                                        </div>
-                                    );
-                                })}
+                            <div className="flex items-center gap-2 mb-5">
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em' }}>일별 활성 유저 (최근 7일)</p>
+                                <span style={{ fontSize: '10px', color: '#5a4e44' }}>
+                                    {ga4.loaded && !ga4.error && ga4.daily.length > 0 ? '● GA4' : '● Supabase'}
+                                </span>
                             </div>
+                            {(() => {
+                                const chartData = (ga4.loaded && !ga4.error && ga4.daily.length > 0)
+                                    ? ga4.daily.map(d => ({ label: d.date, count: d.users }))
+                                    : stats.last7;
+                                const max = Math.max(...chartData.map(x => x.count), 1);
+                                return (
+                                    <div className="flex items-end gap-3" style={{ height: 100 }}>
+                                        {chartData.map(d => {
+                                            const h = Math.max((d.count / max) * 100, d.count > 0 ? 6 : 2);
+                                            return (
+                                                <div key={d.label} className="flex flex-col items-center gap-1 flex-1">
+                                                    <span style={{ fontSize: '10px', color: GOLD }}>{d.count > 0 ? d.count : ''}</span>
+                                                    <div style={{ width: '100%', height: `${h}%`, background: d.count > 0 ? GOLD_DIM : 'rgba(255,255,255,0.04)', border: d.count > 0 ? `1px solid rgba(201,169,110,0.3)` : 'none', borderRadius: 3 }} />
+                                                    <span style={{ fontSize: '9px', color: '#5a4e44', whiteSpace: 'nowrap' }}>{d.label}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Breakdown grids */}
