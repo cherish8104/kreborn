@@ -74,7 +74,7 @@ export function SharedResult() {
                             fontFamily: "'Cormorant Garamond', serif", fontSize: '52px',
                             fontWeight: 300, color: '#f5f0e8', letterSpacing: '0.08em', lineHeight: 1.1
                         }}>
-                            {identity?.fullName || data.generated_korean_name}
+                            {identity?.fullName || data.generated_full_name}
                         </h1>
                         {identity?.fullNameRomanized && (
                             <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#c9a96e', marginTop: 6, letterSpacing: '0.12em' }}>
