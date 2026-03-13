@@ -61,7 +61,7 @@ export async function saveUserGeneration(
                 id: userId,
                 email,
                 original_name: originalName,
-                generated_korean_name: generatedKoreanName,
+                generated_full_name: generatedKoreanName,
                 saju_data: sajuData,
                 share_code: shareCode,
                 identity_data: identityData ?? null,
@@ -80,7 +80,7 @@ export async function getUserByShareCode(shareCode: string) {
     try {
         const { data, error } = await supabase
             .from('users')
-            .select('identity_data, user_input_data, generated_korean_name, original_name')
+            .select('identity_data, user_input_data, generated_full_name, original_name')
             .eq('share_code', shareCode)
             .single();
 
