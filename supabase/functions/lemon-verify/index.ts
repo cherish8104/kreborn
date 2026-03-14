@@ -68,13 +68,16 @@ Deno.serve(async (req) => {
     // ── 3. 이메일로 LemonSqueezy 주문 목록 조회 (orderId 없는 경우 대비) ──
     if (apiKey && dbUser?.email) {
       const listRes = await fetch(
-        `https://api.lemonsqueezy.com/v1/orders?filter[email]=${encodeURIComponent(dbUser.email)}&filter[status]=paid&sort=-createdAt&page[size]=5`,
+        `https://api.lemonsqueezy.com/v1/orders?filter[user_email]=${encodeURIComponent(dbUser.email)}&sort=-created_at&page[size]=5`,
         { headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/vnd.api+json' } },
       );
+      const listText = await listRes.text();
+      console.log('[lemon-verify] orders list status:', listRes.status, 'body:', listText.slice(0, 300));
       if (listRes.ok) {
-        const listData = await listRes.json();
-        const paidOrders = listData.data ?? [];
-        console.log('[lemon-verify] paid orders by email:', paidOrders.length);
+        const listData = JSON.parse(listText);
+        const allOrders = listData.data ?? [];
+        const paidOrders = allOrders.filter((o: any) => o.attributes?.status === 'paid');
+        console.log('[lemon-verify] total orders:', allOrders.length, 'paid:', paidOrders.length);
         if (paidOrders.length > 0) {
           const latestOrder = paidOrders[0];
           await supabase.from('users')
