@@ -49,10 +49,9 @@ Deno.serve(async (req) => {
 
     const orderData = await orderRes.json();
     const status = orderData.data?.attributes?.status;
-    const orderShareCode = orderData.meta?.custom_data?.share_code;
 
-    // 주문이 실제 paid 상태이고 share_code가 일치하는지 확인
-    const isPaid = status === 'paid' && orderShareCode === shareCode;
+    // Orders API는 custom_data를 반환하지 않으므로 status만 확인
+    const isPaid = status === 'paid';
 
     if (isPaid) {
       // DB 업데이트 (웹훅이 아직 안 온 경우 대비)
