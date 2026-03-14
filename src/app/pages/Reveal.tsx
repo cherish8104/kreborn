@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { useUser } from '../store/UserContext';
 import { ResultCard } from '../components/ResultCard';
 import { trackViewPaywall, trackBeginCheckout, trackPurchase } from '../../lib/analytics';
+import { createCheckout, verifyOrder } from '../../lib/lemonsqueezy';
 
 export function Reveal() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const { identity, userInput, setIsPaid } = useUser();
+  const { identity, userInput, setIsPaid, shareCode } = useUser();
   const [showPaywall, setShowPaywall] = useState(false);
-  const [payStep, setPayStep] = useState<'idle' | 'form' | 'loading' | 'success'>('idle');
+  const [payStep, setPayStep] = useState<'idle' | 'loading' | 'success'>('idle');
   const [countdown, setCountdown] = useState(3);
   const sheetRef = useRef<HTMLDivElement>(null);
   const lastScrollY = useRef(0);
@@ -37,26 +40,67 @@ export function Reveal() {
     return () => ro.disconnect();
   }, [showPaywall]);
 
-  const handlePay = () => {
+  // 결제 후 리다이렉트로 돌아왔을 때 자동 검증
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('order_id');
+    if (!orderId || !shareCode) return;
+
+    // URL에서 order_id 제거 (새로고침 시 재검증 방지)
+    window.history.replaceState({}, '', window.location.pathname);
+
+    setShowPaywall(true);
     setPayStep('loading');
-    setTimeout(() => {
-      setPayStep('success');
-      trackPurchase({ transaction_id: `txn_${Date.now()}` });
-    }, 2000);
-    setTimeout(() => { setIsPaid(true); navigate('/full-script'); }, 3800);
+
+    verifyOrder(orderId, shareCode).then((paid) => {
+      if (paid) {
+        setPayStep('success');
+        trackPurchase({ transaction_id: orderId });
+        setTimeout(() => { setIsPaid(true); navigate('/full-script'); }, 1800);
+      } else {
+        // 웹훅 지연 가능성 — 최대 20초 폴링
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          const retried = await verifyOrder(orderId, shareCode);
+          if (retried) {
+            clearInterval(poll);
+            setPayStep('success');
+            trackPurchase({ transaction_id: orderId });
+            setTimeout(() => { setIsPaid(true); navigate('/full-script'); }, 1800);
+          } else if (attempts >= 10) {
+            clearInterval(poll);
+            setPayStep('idle');
+          }
+        }, 2000);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareCode]);
+
+  const handleCheckout = async () => {
+    if (!shareCode || !userInput) return;
+    trackBeginCheckout();
+    setPayStep('loading');
+    try {
+      const url = await createCheckout(shareCode, userInput.email);
+      window.location.href = url;
+    } catch {
+      setPayStep('idle');
+    }
   };
 
   if (!identity || !userInput) return null;
 
   const FEATURES = [
-    { emoji: '⏳', text: '과거·현재·미래 사주 시간 서사' },
-    { emoji: '☯️', text: '일주론 · 일간 심층 분석 리포트' },
-    { emoji: '♥', text: '운명의 짝 · 궁합 점수 & 전체 프로필' },
-    { emoji: '🐉', text: '띠 · 십이지신 완전 분석' },
-    { emoji: '📊', text: '오행 블루프린트 · 레이더 차트' },
-    { emoji: '🌆', text: '서울 동네 + 하루 시나리오' },
-    { emoji: '📜', text: '성명학 · 이름 작명 원리 해설' },
-    { emoji: '🪪', text: 'HD 프리미엄 ID 카드' },
+    { emoji: '⏳', text: t('feature_time', '과거·현재·미래 사주 시간 서사') },
+    { emoji: '☯️', text: t('feature_day_master', '일주론 · 일간 심층 분석 리포트') },
+    { emoji: '♥', text: t('feature_soulmate', '운명의 짝 · 궁합 점수 & 전체 프로필') },
+    { emoji: '🐉', text: t('feature_zodiac', '띠 · 십이지신 완전 분석') },
+    { emoji: '📊', text: t('feature_radar', '오행 블루프린트 · 레이더 차트') },
+    { emoji: '🌆', text: t('feature_seoul', '서울 동네 + 하루 시나리오') },
+    { emoji: '📜', text: t('feature_name', '성명학 · 이름 작명 원리 해설') },
+    { emoji: '🪪', text: t('feature_id_card', 'HD 프리미엄 ID 카드') },
   ];
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -124,7 +168,7 @@ export function Reveal() {
                   border: 'none', borderRadius: '30px',
                   boxShadow: '0 4px 20px rgba(201,169,110,0.2)'
                 }}>
-                결제 후 확인하기
+                {t('btn_check_after_payment', '결제 후 확인하기')}
               </button>
             </motion.div>
           )}
@@ -224,7 +268,7 @@ export function Reveal() {
                         ))}
                       </div>
 
-                      <motion.button onClick={() => { trackBeginCheckout(); setPayStep('form'); }} className="w-full mb-3"
+                      <motion.button onClick={handleCheckout} className="w-full mb-3"
                         style={{
                           padding: '15px', fontFamily: 'Pretendard, sans-serif',
                           fontSize: '12px', letterSpacing: '0.15em', cursor: 'pointer',
@@ -239,62 +283,10 @@ export function Reveal() {
                       {countdown > 0 && (
                         <p className="text-center"
                           style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#a39481' }}>
-                          ⏳ 결과 스크립트가 {countdown}분 후 만료됩니다
+                          ⏳ {t('msg_script_expires_in', '결과 스크립트가 {{min}}분 후 만료됩니다', { min: countdown })}
                         </p>
                       )}
                     </>
-                  )}
-
-                  {/* ─ PAYMENT FORM ─ */}
-                  {payStep === 'form' && (
-                    <div>
-                      <p style={{
-                        fontFamily: "'Cormorant Garamond', serif", fontSize: '20px',
-                        color: '#f5f0e8', fontWeight: 300, marginBottom: 14, textAlign: 'center'
-                      }}>
-                        Payment Details
-                      </p>
-                      <div className="flex flex-col gap-2 mb-4">
-                        <input readOnly value="•••• •••• •••• 4242"
-                          style={{
-                            background: 'rgba(255,255,255,0.08)',
-                            border: '1px solid rgba(201,169,110,0.3)', color: '#f5f0e8',
-                            padding: '12px 14px', fontSize: '14px',
-                            fontFamily: 'Pretendard, sans-serif', outline: 'none'
-                          }} />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input readOnly value="12/28"
-                            style={{
-                              background: 'rgba(255,255,255,0.08)',
-                              border: '1px solid rgba(201,169,110,0.3)', color: '#f5f0e8',
-                              padding: '12px 14px', fontSize: '14px',
-                              fontFamily: 'Pretendard, sans-serif', outline: 'none'
-                            }} />
-                          <input readOnly value="•••"
-                            style={{
-                              background: 'rgba(255,255,255,0.08)',
-                              border: '1px solid rgba(201,169,110,0.3)', color: '#f5f0e8',
-                              padding: '12px 14px', fontSize: '14px',
-                              fontFamily: 'Pretendard, sans-serif', outline: 'none'
-                            }} />
-                        </div>
-                      </div>
-                      <motion.button onClick={handlePay} className="w-full mb-3"
-                        style={{
-                          padding: '15px', fontFamily: 'Pretendard, sans-serif',
-                          fontSize: '12px', letterSpacing: '0.15em', cursor: 'pointer',
-                          color: '#0a0a0a',
-                          background: 'linear-gradient(135deg, #c9a96e, #a07840)',
-                          border: 'none', borderRadius: '6px'
-                        }}
-                        whileTap={{ scale: 0.97 }}>
-                        PAY ₩5,900 · $4.5
-                      </motion.button>
-                      <p className="text-center"
-                        style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#a39481' }}>
-                        🔒 Demo mode — no real charge
-                      </p>
-                    </div>
                   )}
 
                   {/* ─ LOADING ─ */}

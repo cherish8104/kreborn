@@ -62,10 +62,17 @@ export async function saveUserGeneration(
                 email,
                 original_name: originalName,
                 generated_full_name: generatedKoreanName,
+                generated_korean_name: generatedKoreanName,
                 saju_data: sajuData,
                 share_code: shareCode,
                 identity_data: identityData ?? null,
                 user_input_data: userInputData ?? null,
+                gender: userInputData?.gender ?? null,
+                nationality: userInputData?.nationality ?? null,
+                birth_year: userInputData?.birthYear ?? null,
+                birth_month: userInputData?.birthMonth ?? null,
+                birth_day: userInputData?.birthDay ?? null,
+                birth_hour: userInputData?.birthHour ?? null,
             });
 
         if (error) console.error('[ContentDB] SAVE ERROR', error.code, error.message);
