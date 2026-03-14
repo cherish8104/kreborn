@@ -103,7 +103,8 @@ const resources = {
 }
     },
     en: {
-        translation: {\n      "sr_not_found": "Result not found",
+        translation: {
+      "sr_not_found": "Result not found",
       "sr_find_identity_btn": "Discover my identity →",
       "sr_parallel_identity": "Parallel Korean Identity",
       "sr_custom_name": "'s Custom Korean Name",
@@ -233,7 +234,8 @@ const resources = {
         }
     },
     ja: {
-        translation: {\n      "sr_not_found": "結果が見つかりません",
+        translation: {
+      "sr_not_found": "結果が見つかりません",
       "sr_find_identity_btn": "私のアイデンティティを見つける →",
       "sr_parallel_identity": "韓国の並行アイデンティティ",
       "sr_custom_name": "様の専用の韓国の名前です",
@@ -362,7 +364,8 @@ const resources = {
         }
     },
     zh: {
-        translation: {\n      "sr_not_found": "未找到结果",
+        translation: {
+      "sr_not_found": "未找到结果",
       "sr_find_identity_btn": "发现我的身份 →",
       "sr_parallel_identity": "韩国平行身份",
       "sr_custom_name": "的专属韩国名字",
@@ -491,7 +494,8 @@ const resources = {
         }
     },
     th: {
-        translation: {\n      "sr_not_found": "ไม่พบผลลัพธ์",
+        translation: {
+      "sr_not_found": "ไม่พบผลลัพธ์",
       "sr_find_identity_btn": "ค้นหาอัตลักษณ์ของฉัน →",
       "sr_parallel_identity": "อัตลักษณ์เกาหลีคู่ขนาน",
       "sr_custom_name": "ชื่อเกาหลีที่สร้างขึ้นเพื่อคุณ",
