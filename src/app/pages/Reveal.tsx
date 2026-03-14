@@ -46,31 +46,36 @@ export function Reveal() {
     const orderId = params.get('order_id');
     const scParam = params.get('sc');
     const effectiveShareCode = shareCode ?? scParam;
-    console.log('[verify] url:', window.location.search, 'orderId:', orderId, 'shareCode:', shareCode, 'sc:', scParam);
-    if (!orderId || !effectiveShareCode) return;
+    const paymentPending = localStorage.getItem('kreborn_payment_pending');
 
-    // URL에서 파라미터 제거 (새로고침 시 재검증 방지)
+    console.log('[verify] url:', window.location.search, 'orderId:', orderId, 'shareCode:', effectiveShareCode, 'pending:', paymentPending);
+
+    // order_id가 있거나 결제 시작 플래그가 있을 때만 검증
+    if (!effectiveShareCode || (!orderId && !paymentPending)) return;
+
+    localStorage.removeItem('kreborn_payment_pending');
     window.history.replaceState({}, '', window.location.pathname);
 
     setShowPaywall(true);
     setPayStep('loading');
 
-    verifyOrder(orderId, effectiveShareCode).then((paid) => {
+    const oid = orderId ?? null;
+    verifyOrder(oid, effectiveShareCode).then((paid) => {
       console.log('[verify] result:', paid);
       if (paid) {
         setPayStep('success');
-        trackPurchase({ transaction_id: orderId });
+        trackPurchase({ transaction_id: oid ?? 'unknown' });
         setTimeout(() => { setIsPaid(true); navigate('/full-script'); }, 1800);
       } else {
         // 웹훅 지연 가능성 — 최대 20초 폴링
         let attempts = 0;
         const poll = setInterval(async () => {
           attempts++;
-          const retried = await verifyOrder(orderId, effectiveShareCode);
+          const retried = await verifyOrder(oid, effectiveShareCode);
           if (retried) {
             clearInterval(poll);
             setPayStep('success');
-            trackPurchase({ transaction_id: orderId });
+            trackPurchase({ transaction_id: oid ?? 'unknown' });
             setTimeout(() => { setIsPaid(true); navigate('/full-script'); }, 1800);
           } else if (attempts >= 10) {
             clearInterval(poll);
@@ -88,6 +93,8 @@ export function Reveal() {
     setPayStep('loading');
     try {
       const url = await createCheckout(shareCode, userInput.email);
+      // 결제 후 리다이렉트 시 order_id 없어도 DB 확인 가능하도록 플래그 저장
+      localStorage.setItem('kreborn_payment_pending', '1');
       window.location.href = url;
     } catch {
       setPayStep('idle');

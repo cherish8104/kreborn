@@ -26,7 +26,7 @@ export async function createCheckout(shareCode: string, email: string): Promise<
 }
 
 /** 결제 후 리다이렉트 시 주문 ID로 결제 완료 여부 검증 */
-export async function verifyOrder(orderId: string, shareCode: string): Promise<boolean> {
+export async function verifyOrder(orderId: string | null, shareCode: string): Promise<boolean> {
   try {
     const res = await fetch(`${FN_BASE}/lemon-verify`, {
       method: 'POST',

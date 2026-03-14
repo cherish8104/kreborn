@@ -17,56 +17,57 @@ Deno.serve(async (req) => {
   try {
     const { orderId, shareCode } = await req.json();
 
-    if (!orderId || !shareCode) {
-      return new Response(JSON.stringify({ error: 'orderId and shareCode required' }), {
+    if (!shareCode) {
+      return new Response(JSON.stringify({ error: 'shareCode required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const apiKey = Deno.env.get('LEMON_API_KEY');
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'Missing LEMON_API_KEY' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    // orderId가 있으면 LemonSqueezy API로 주문 확인 후 DB 업데이트
+    if (orderId) {
+      const apiKey = Deno.env.get('LEMON_API_KEY');
+      if (apiKey) {
+        const orderRes = await fetch(`https://api.lemonsqueezy.com/v1/orders/${orderId}`, {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            Accept: 'application/vnd.api+json',
+          },
+        });
+
+        if (orderRes.ok) {
+          const orderData = await orderRes.json();
+          const status = orderData.data?.attributes?.status;
+          console.log('[lemon-verify] orderId:', orderId, 'status:', status);
+
+          if (status === 'paid') {
+            await supabase
+              .from('users')
+              .update({ is_paid: true, lemon_order_id: String(orderId) })
+              .eq('share_code', shareCode);
+            return new Response(JSON.stringify({ paid: true }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+      }
     }
 
-    // LemonSqueezy API로 주문 상태 확인
-    const orderRes = await fetch(`https://api.lemonsqueezy.com/v1/orders/${orderId}`, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Accept: 'application/vnd.api+json',
-      },
-    });
+    // orderId 없거나 API 확인 실패 → DB에서 웹훅 처리 여부 직접 확인
+    const { data } = await supabase
+      .from('users')
+      .select('is_paid')
+      .eq('share_code', shareCode)
+      .single();
 
-    if (!orderRes.ok) {
-      return new Response(JSON.stringify({ paid: false, error: 'Order not found' }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    console.log('[lemon-verify] DB check shareCode:', shareCode, 'is_paid:', data?.is_paid);
 
-    const orderData = await orderRes.json();
-    const status = orderData.data?.attributes?.status;
-
-    // Orders API는 custom_data를 반환하지 않으므로 status만 확인
-    const isPaid = status === 'paid';
-
-    if (isPaid) {
-      // DB 업데이트 (웹훅이 아직 안 온 경우 대비)
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      );
-
-      await supabase
-        .from('users')
-        .update({ is_paid: true, lemon_order_id: String(orderId) })
-        .eq('share_code', shareCode);
-    }
-
-    return new Response(JSON.stringify({ paid: isPaid }), {
+    return new Response(JSON.stringify({ paid: data?.is_paid === true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
