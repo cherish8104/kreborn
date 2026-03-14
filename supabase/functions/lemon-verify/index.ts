@@ -24,50 +24,70 @@ Deno.serve(async (req) => {
       });
     }
 
+    const apiKey = Deno.env.get('LEMON_API_KEY');
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // orderId가 있으면 LemonSqueezy API로 주문 확인 후 DB 업데이트
-    if (orderId) {
-      const apiKey = Deno.env.get('LEMON_API_KEY');
-      if (apiKey) {
-        const orderRes = await fetch(`https://api.lemonsqueezy.com/v1/orders/${orderId}`, {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            Accept: 'application/vnd.api+json',
-          },
-        });
-
-        if (orderRes.ok) {
-          const orderData = await orderRes.json();
-          const status = orderData.data?.attributes?.status;
-          console.log('[lemon-verify] orderId:', orderId, 'status:', status);
-
-          if (status === 'paid') {
-            await supabase
-              .from('users')
-              .update({ is_paid: true, lemon_order_id: String(orderId) })
-              .eq('share_code', shareCode);
-            return new Response(JSON.stringify({ paid: true }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
+    // ── 1. orderId 있으면 직접 주문 확인 ────────────────────────────
+    if (orderId && apiKey) {
+      const orderRes = await fetch(`https://api.lemonsqueezy.com/v1/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/vnd.api+json' },
+      });
+      if (orderRes.ok) {
+        const orderData = await orderRes.json();
+        const status = orderData.data?.attributes?.status;
+        console.log('[lemon-verify] orderId:', orderId, 'status:', status);
+        if (status === 'paid') {
+          await supabase.from('users')
+            .update({ is_paid: true, lemon_order_id: String(orderId) })
+            .eq('share_code', shareCode);
+          return new Response(JSON.stringify({ paid: true }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
       }
     }
 
-    // orderId 없거나 API 확인 실패 → DB에서 웹훅 처리 여부 직접 확인
-    const { data } = await supabase
+    // ── 2. DB에서 is_paid 확인 (웹훅이 이미 처리한 경우) ───────────
+    const { data: dbUser } = await supabase
       .from('users')
-      .select('is_paid')
+      .select('is_paid, email')
       .eq('share_code', shareCode)
       .single();
 
-    console.log('[lemon-verify] DB check shareCode:', shareCode, 'is_paid:', data?.is_paid);
+    console.log('[lemon-verify] DB is_paid:', dbUser?.is_paid, 'email:', dbUser?.email);
 
-    return new Response(JSON.stringify({ paid: data?.is_paid === true }), {
+    if (dbUser?.is_paid === true) {
+      return new Response(JSON.stringify({ paid: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── 3. 이메일로 LemonSqueezy 주문 목록 조회 (orderId 없는 경우 대비) ──
+    if (apiKey && dbUser?.email) {
+      const listRes = await fetch(
+        `https://api.lemonsqueezy.com/v1/orders?filter[email]=${encodeURIComponent(dbUser.email)}&filter[status]=paid&sort=-createdAt&page[size]=5`,
+        { headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/vnd.api+json' } },
+      );
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        const paidOrders = listData.data ?? [];
+        console.log('[lemon-verify] paid orders by email:', paidOrders.length);
+        if (paidOrders.length > 0) {
+          const latestOrder = paidOrders[0];
+          await supabase.from('users')
+            .update({ is_paid: true, lemon_order_id: String(latestOrder.id) })
+            .eq('share_code', shareCode);
+          return new Response(JSON.stringify({ paid: true }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({ paid: false }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
