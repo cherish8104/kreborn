@@ -44,15 +44,18 @@ export function Reveal() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('order_id');
-    if (!orderId || !shareCode) return;
+    // sc 파라미터: lemon-checkout이 redirect_url에 삽입 (sessionStorage 소실 대비)
+    const scParam = params.get('sc');
+    const effectiveShareCode = shareCode ?? scParam;
+    if (!orderId || !effectiveShareCode) return;
 
-    // URL에서 order_id 제거 (새로고침 시 재검증 방지)
+    // URL에서 파라미터 제거 (새로고침 시 재검증 방지)
     window.history.replaceState({}, '', window.location.pathname);
 
     setShowPaywall(true);
     setPayStep('loading');
 
-    verifyOrder(orderId, shareCode).then((paid) => {
+    verifyOrder(orderId, effectiveShareCode).then((paid) => {
       if (paid) {
         setPayStep('success');
         trackPurchase({ transaction_id: orderId });
@@ -62,7 +65,7 @@ export function Reveal() {
         let attempts = 0;
         const poll = setInterval(async () => {
           attempts++;
-          const retried = await verifyOrder(orderId, shareCode);
+          const retried = await verifyOrder(orderId, effectiveShareCode);
           if (retried) {
             clearInterval(poll);
             setPayStep('success');
