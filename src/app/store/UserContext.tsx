@@ -26,42 +26,44 @@ interface AppState {
 
 const UserContext = createContext<AppState | null>(null);
 
+// localStorage 사용 — sessionStorage는 iOS Safari 리다이렉트 후 소실되는 문제 있음
+function read(key: string) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function write(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { }
+}
+
 export function UserProvider({ children }: { children: ReactNode }) {
   const [userInput, setUserInputState] = useState<UserInput | null>(() => {
-    try {
-      const s = sessionStorage.getItem('kreborn_input');
-      return s ? JSON.parse(s) : null;
-    } catch { return null; }
+    const s = read('kreborn_input');
+    return s ? JSON.parse(s) : null;
   });
 
   const [identity, setIdentityState] = useState<KoreanIdentity | null>(() => {
-    try {
-      const s = sessionStorage.getItem('kreborn_identity');
-      return s ? JSON.parse(s) : null;
-    } catch { return null; }
+    const s = read('kreborn_identity');
+    return s ? JSON.parse(s) : null;
   });
 
   const [isPaid, setIsPaidState] = useState(false);
 
-  const [shareCode, setShareCodeState] = useState<string | null>(() => {
-    try { return sessionStorage.getItem('kreborn_share_code'); } catch { return null; }
-  });
+  const [shareCode, setShareCodeState] = useState<string | null>(() => read('kreborn_share_code'));
 
   const setUserInput = (input: UserInput) => {
     setUserInputState(input);
-    try { sessionStorage.setItem('kreborn_input', JSON.stringify(input)); } catch { }
+    write('kreborn_input', JSON.stringify(input));
   };
 
   const setIdentity = (id: KoreanIdentity) => {
     setIdentityState(id);
-    try { sessionStorage.setItem('kreborn_identity', JSON.stringify(id)); } catch { }
+    write('kreborn_identity', JSON.stringify(id));
   };
 
   const setIsPaid = (paid: boolean) => setIsPaidState(paid);
 
   const setShareCode = (code: string) => {
     setShareCodeState(code);
-    try { sessionStorage.setItem('kreborn_share_code', code); } catch { }
+    write('kreborn_share_code', code);
   };
 
   return (
