@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
             custom: { share_code: shareCode },
           },
           product_options: {
-            redirect_url: `${appUrl}/reveal?sc=${encodeURIComponent(shareCode)}`,
+            redirect_url: `${appUrl}/reveal`,
           },
         },
         relationships: {

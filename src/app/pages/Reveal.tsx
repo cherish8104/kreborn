@@ -44,9 +44,9 @@ export function Reveal() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('order_id');
-    // sc 파라미터: lemon-checkout이 redirect_url에 삽입 (sessionStorage 소실 대비)
     const scParam = params.get('sc');
     const effectiveShareCode = shareCode ?? scParam;
+    console.log('[verify] url:', window.location.search, 'orderId:', orderId, 'shareCode:', shareCode, 'sc:', scParam);
     if (!orderId || !effectiveShareCode) return;
 
     // URL에서 파라미터 제거 (새로고침 시 재검증 방지)
@@ -56,6 +56,7 @@ export function Reveal() {
     setPayStep('loading');
 
     verifyOrder(orderId, effectiveShareCode).then((paid) => {
+      console.log('[verify] result:', paid);
       if (paid) {
         setPayStep('success');
         trackPurchase({ transaction_id: orderId });
