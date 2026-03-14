@@ -4,6 +4,7 @@ const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const headers = {
   'Content-Type': 'application/json',
   apikey: ANON_KEY,
+  Authorization: `Bearer ${ANON_KEY}`,
 };
 
 /** LemonSqueezy 체크아웃 URL 생성 — 결제 페이지로 리다이렉트할 URL 반환 */
