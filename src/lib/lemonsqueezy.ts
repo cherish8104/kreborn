@@ -33,10 +33,12 @@ export async function verifyOrder(orderId: string, shareCode: string): Promise<b
       headers,
       body: JSON.stringify({ orderId, shareCode }),
     });
+    const json = await res.json().catch(() => ({}));
+    console.log('[lemon-verify] status:', res.status, 'body:', JSON.stringify(json));
     if (!res.ok) return false;
-    const { paid } = await res.json();
-    return paid === true;
-  } catch {
+    return json.paid === true;
+  } catch (e) {
+    console.error('[lemon-verify] fetch error:', e);
     return false;
   }
 }
