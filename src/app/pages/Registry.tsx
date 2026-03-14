@@ -1,9 +1,11 @@
 import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { useUser } from '../store/UserContext';
 import { calculateSaju, generateKoreanIdentity } from '../utils/sajuEngine';
 import { trackCompleteRegistration } from '../../lib/analytics';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import type { Pillar } from '../utils/sajuEngine';
 
 /* ─── Constants ─────────────────────────────────────────── */
@@ -30,37 +32,93 @@ const HOURS = [
 ];
 
 const NATIONALITIES: { flag: string; label: string; value: string }[] = [
+  // North America
   { flag: '🇺🇸', label: 'American', value: 'American' },
-  { flag: '🇬🇧', label: 'British', value: 'British' },
   { flag: '🇨🇦', label: 'Canadian', value: 'Canadian' },
-  { flag: '🇦🇺', label: 'Australian', value: 'Australian' },
+  { flag: '🇲🇽', label: 'Mexican', value: 'Mexican' },
+  { flag: '🇨🇺', label: 'Cuban', value: 'Cuban' },
+  { flag: '🇯🇲', label: 'Jamaican', value: 'Jamaican' },
+  { flag: '🇵🇦', label: 'Panamanian', value: 'Panamanian' },
+  // Europe
+  { flag: '🇬🇧', label: 'British', value: 'British' },
   { flag: '🇫🇷', label: 'French', value: 'French' },
   { flag: '🇩🇪', label: 'German', value: 'German' },
-  { flag: '🇪🇸', label: 'Spanish', value: 'Spanish' },
   { flag: '🇮🇹', label: 'Italian', value: 'Italian' },
+  { flag: '🇪🇸', label: 'Spanish', value: 'Spanish' },
+  { flag: '🇳🇱', label: 'Dutch', value: 'Dutch' },
+  { flag: '🇵🇹', label: 'Portuguese', value: 'Portuguese' },
+  { flag: '🇨🇭', label: 'Swiss', value: 'Swiss' },
+  { flag: '🇧🇪', label: 'Belgian', value: 'Belgian' },
+  { flag: '🇦🇹', label: 'Austrian', value: 'Austrian' },
+  { flag: '🇸🇪', label: 'Swedish', value: 'Swedish' },
+  { flag: '🇳🇴', label: 'Norwegian', value: 'Norwegian' },
+  { flag: '🇩🇰', label: 'Danish', value: 'Danish' },
+  { flag: '🇫🇮', label: 'Finnish', value: 'Finnish' },
+  { flag: '🇮🇪', label: 'Irish', value: 'Irish' },
+  { flag: '🇵🇱', label: 'Polish', value: 'Polish' },
+  { flag: '🇨🇿', label: 'Czech', value: 'Czech' },
+  { flag: '🇭🇺', label: 'Hungarian', value: 'Hungarian' },
+  { flag: '🇬🇷', label: 'Greek', value: 'Greek' },
+  { flag: '🇷🇴', label: 'Romanian', value: 'Romanian' },
+  { flag: '🇧🇬', label: 'Bulgarian', value: 'Bulgarian' },
+  { flag: '🇷🇺', label: 'Russian', value: 'Russian' },
+  { flag: '🇺🇦', label: 'Ukrainian', value: 'Ukrainian' },
+  { flag: '🇹🇷', label: 'Turkish', value: 'Turkish' },
+  { flag: '🇷🇸', label: 'Serbian', value: 'Serbian' },
+  { flag: '🇭🇷', label: 'Croatian', value: 'Croatian' },
+  // Asia
   { flag: '🇯🇵', label: 'Japanese', value: 'Japanese' },
   { flag: '🇨🇳', label: 'Chinese', value: 'Chinese' },
   { flag: '🇹🇼', label: 'Taiwanese', value: 'Taiwanese' },
+  { flag: '🇭🇰', label: 'Hong Konger', value: 'Hong Konger' },
+  { flag: '🇮🇳', label: 'Indian', value: 'Indian' },
+  { flag: '🇵🇰', label: 'Pakistani', value: 'Pakistani' },
+  { flag: '🇧🇩', label: 'Bangladeshi', value: 'Bangladeshi' },
+  { flag: '🇱🇰', label: 'Sri Lankan', value: 'Sri Lankan' },
+  { flag: '🇳🇵', label: 'Nepali', value: 'Nepali' },
+  // Southeast Asia
   { flag: '🇹🇭', label: 'Thai', value: 'Thai' },
   { flag: '🇻🇳', label: 'Vietnamese', value: 'Vietnamese' },
   { flag: '🇮🇩', label: 'Indonesian', value: 'Indonesian' },
   { flag: '🇲🇾', label: 'Malaysian', value: 'Malaysian' },
   { flag: '🇸🇬', label: 'Singaporean', value: 'Singaporean' },
   { flag: '🇵🇭', label: 'Filipino', value: 'Filipino' },
-  { flag: '🇮🇳', label: 'Indian', value: 'Indian' },
+  { flag: '🇲🇲', label: 'Burmese', value: 'Burmese' },
+  { flag: '🇰🇭', label: 'Cambodian', value: 'Cambodian' },
+  // Middle East & Central Asia
+  { flag: '🇸🇦', label: 'Saudi Arabian', value: 'Saudi Arabian' },
+  { flag: '🇦🇪', label: 'Emirati', value: 'Emirati' },
+  { flag: '🇮🇷', label: 'Iranian', value: 'Iranian' },
+  { flag: '🇮🇱', label: 'Israeli', value: 'Israeli' },
+  { flag: '🇪🇬', label: 'Egyptian', value: 'Egyptian' },
+  { flag: '🇰🇿', label: 'Kazakhstani', value: 'Kazakhstani' },
+  { flag: '🇺🇿', label: 'Uzbekistani', value: 'Uzbekistani' },
+  { flag: '🇶🇦', label: 'Qatari', value: 'Qatari' },
+  { flag: '🇰🇼', label: 'Kuwaiti', value: 'Kuwaiti' },
+  { flag: '🇯🇴', label: 'Jordanian', value: 'Jordanian' },
+  // Africa
+  { flag: '🇿🇦', label: 'South African', value: 'South African' },
+  { flag: '🇳🇬', label: 'Nigerian', value: 'Nigerian' },
+  { flag: '🇰🇪', label: 'Kenyan', value: 'Kenyan' },
+  { flag: '🇲🇦', label: 'Moroccan', value: 'Moroccan' },
+  { flag: '🇬🇭', label: 'Ghanaian', value: 'Ghanaian' },
+  { flag: '🇪🇹', label: 'Ethiopian', value: 'Ethiopian' },
+  { flag: '🇹🇿', label: 'Tanzanian', value: 'Tanzanian' },
+  // Oceania
+  { flag: '🇦🇺', label: 'Australian', value: 'Australian' },
+  { flag: '🇳🇿', label: 'New Zealander', value: 'New Zealander' },
+  { flag: '🇫🇯', label: 'Fijian', value: 'Fijian' },
+  // South America
   { flag: '🇧🇷', label: 'Brazilian', value: 'Brazilian' },
-  { flag: '🇲🇽', label: 'Mexican', value: 'Mexican' },
   { flag: '🇦🇷', label: 'Argentine', value: 'Argentine' },
   { flag: '🇨🇴', label: 'Colombian', value: 'Colombian' },
-  { flag: '🇳🇱', label: 'Dutch', value: 'Dutch' },
-  { flag: '🇸🇪', label: 'Swedish', value: 'Swedish' },
-  { flag: '🇳🇴', label: 'Norwegian', value: 'Norwegian' },
-  { flag: '🇩🇰', label: 'Danish', value: 'Danish' },
-  { flag: '🇫🇮', label: 'Finnish', value: 'Finnish' },
-  { flag: '🇵🇱', label: 'Polish', value: 'Polish' },
-  { flag: '🇷🇺', label: 'Russian', value: 'Russian' },
-  { flag: '🇹🇷', label: 'Turkish', value: 'Turkish' },
-  { flag: '🌍', label: 'Other', value: 'Other' },
+  { flag: '🇨🇱', label: 'Chilean', value: 'Chilean' },
+  { flag: '🇵🇪', label: 'Peruvian', value: 'Peruvian' },
+  { flag: '🇻🇪', label: 'Venezuelan', value: 'Venezuelan' },
+  { flag: '🇪🇨', label: 'Ecuadorian', value: 'Ecuadorian' },
+  { flag: '🇺🇾', label: 'Uruguayan', value: 'Uruguayan' },
+  // Other
+  { flag: '🌏', label: 'Other', value: 'Other' },
 ];
 
 const MONTHS = [
@@ -72,16 +130,7 @@ const MONTHS = [
   { num: '11', kr: '11월', en: 'Nov' }, { num: '12', kr: '12월', en: 'Dec' },
 ];
 
-const STEP_META = [
-  { icon: '名', ko: '이름을 알려주세요', en: 'Your full name, in English' },
-  { icon: '年', ko: '태어난 해는?', en: 'Birth year  ·  1920 – 2010' },
-  { icon: '月', ko: '태어난 달은?', en: 'Birth month' },
-  { icon: '日', ko: '태어난 날은?', en: 'Birth day  ·  1 – 31' },
-  { icon: '時', ko: '태어난 시각은?', en: 'Birth hour  ·  12 시진(時辰)' },
-  { icon: '陰陽', ko: '성별은?', en: 'Gender · 음양의 기운' },
-  { icon: '國', ko: '어느 나라에서 왔나요?', en: 'Nationality' },
-  { icon: '✉', ko: '이메일 주소는?', en: 'Your results will be sent here' },
-];
+// STEP_META is now dynamically generated inside the component
 
 /* ─── Mini Pillar ────────────────────────────────────────── */
 function MiniPillar({ pillar, label }: { pillar: Pillar; label: string }) {
@@ -122,9 +171,21 @@ interface FormState {
 }
 
 export function Registry() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { setUserInput, setIdentity, setShareCode } = useUser();
   const [step, setStep] = useState(0);
+
+  const STEP_META = useMemo(() => [
+    { icon: '名', ko: t('step0_ko', '이름을 알려주세요'), en: t('step0_en', 'Your full name, in English') },
+    { icon: '年', ko: t('step1_ko', '태어난 해는?'), en: t('step1_en', 'Birth year  ·  1920 – 2010') },
+    { icon: '月', ko: t('step2_ko', '태어난 달은?'), en: t('step2_en', 'Birth month') },
+    { icon: '日', ko: t('step3_ko', '태어난 날은?'), en: t('step3_en', 'Birth day  ·  1 – 31') },
+    { icon: '時', ko: t('step4_ko', '태어난 시각은?'), en: t('step4_en', 'Birth hour  ·  12 시진(時辰)') },
+    { icon: '陰陽', ko: t('step5_ko', '성별은?'), en: t('step5_en', 'Gender · 음양의 기운') },
+    { icon: '國', ko: t('step6_ko', '어느 나라에서 왔나요?'), en: t('step6_en', 'Nationality') },
+    { icon: '✉', ko: t('step7_ko', '이메일 주소는?'), en: t('step7_en', 'Your results will be sent here') },
+  ], [t]);
   const [form, setForm] = useState<FormState>({
     name: '', birthYear: '', birthMonth: '', birthDay: '',
     birthHour: 12, gender: '', nationality: '', email: '',
@@ -145,14 +206,14 @@ export function Registry() {
 
   const validate = (): boolean => {
     const msgs: Record<number, () => string | null> = {
-      0: () => !form.name.trim() ? '이름을 입력해주세요' : null,
-      1: () => { const y = parseInt(form.birthYear); return (!y || y < 1920 || y > 2010) ? '1920–2010 사이의 연도' : null; },
-      2: () => !form.birthMonth ? '월을 선택해주세요' : null,
-      3: () => { const d = parseInt(form.birthDay); return (!d || d < 1 || d > 31) ? '1–31 사이의 날짜' : null; },
+      0: () => !form.name.trim() ? t('err_name', '이름을 입력해주세요') : null,
+      1: () => { const y = parseInt(form.birthYear); return (!y || y < 1920 || y > 2010) ? t('err_year', '1920–2010 사이의 연도') : null; },
+      2: () => !form.birthMonth ? t('err_month', '월을 선택해주세요') : null,
+      3: () => { const d = parseInt(form.birthDay); return (!d || d < 1 || d > 31) ? t('err_day', '1–31 사이의 날짜') : null; },
       4: () => null,
-      5: () => !form.gender ? '성별을 선택해주세요' : null,
-      6: () => !form.nationality ? '국적을 선택해주세요' : null,
-      7: () => !form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? '올바른 이메일을 입력해주세요' : null,
+      5: () => !form.gender ? t('err_gender', '성별을 선택해주세요') : null,
+      6: () => !form.nationality ? t('err_nationality', '국적을 선택해주세요') : null,
+      7: () => !form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? t('err_email', '올바른 이메일을 입력해주세요') : null,
     };
     const msg = msgs[step]?.();
     if (msg) { setError(msg); return false; }
@@ -256,7 +317,7 @@ export function Registry() {
       navigate('/montage');
     } catch (err) {
       console.error('Submit failed:', err);
-      setError('분석 중 오류가 발생했습니다. 다시 시도해주세요.');
+      setError(t('err_analysis_failed', '분석 중 오류가 발생했습니다. 다시 시도해주세요.'));
       setIsSubmitting(false);
     }
   };
@@ -278,7 +339,7 @@ export function Registry() {
     switch (step) {
       case 0:
         return (
-          <input ref={inputRef} autoFocus type="text" placeholder="e.g. Emma Johansson"
+          <input ref={inputRef} autoFocus type="text" placeholder={t('placeholder_name', "e.g. Emma Johansson")}
             value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setError(''); }}
             onKeyDown={e => { if (e.key === 'Enter') goNext(); }}
             autoComplete="name"
@@ -309,11 +370,11 @@ export function Registry() {
                   <span style={{
                     fontFamily: "'Cormorant Garamond', serif", fontSize: '16px',
                     color: sel ? '#c9a96e' : '#a39585', lineHeight: 1
-                  }}>{m.kr}</span>
+                  }}>{t(`month_${m.num}_kr`, m.kr)}</span>
                   <span style={{
                     fontFamily: 'Pretendard, sans-serif', fontSize: '9px',
                     color: sel ? '#c9a96e' : '#bba689'
-                  }}>{m.en}</span>
+                  }}>{t(`month_${m.num}_en`, m.en)}</span>
                 </motion.button>
               );
             })}
@@ -345,11 +406,11 @@ export function Registry() {
                   <span style={{
                     fontFamily: 'Pretendard, sans-serif', fontSize: '14px',
                     color: sel ? '#c9a96e' : '#e8dcca'
-                  }}>{h.label}</span>
+                  }}>{t(`hour_${h.value}_label`, h.label)}</span>
                   <span style={{
                     fontFamily: 'Pretendard, sans-serif', fontSize: '11px',
                     color: sel ? '#c9a96e' : '#8a7255'
-                  }}>{h.sub}</span>
+                  }}>{t(`hour_${h.value}_sub`, h.sub)}</span>
                 </motion.button>
               );
             })}
@@ -359,8 +420,8 @@ export function Registry() {
         return (
           <div className="grid grid-cols-2 gap-3">
             {([
-              { g: 'female' as const, icon: '☽', ko: '여성', en: 'Female', sub: '음(陰)의 기운' },
-              { g: 'male' as const, icon: '☀', ko: '남성', en: 'Male', sub: '양(陽)의 기운' },
+              { g: 'female' as const, icon: '☽', ko: t('female_ko', '여성'), en: t('female_en', 'Female'), sub: t('female_sub', '음(陰)의 기운') },
+              { g: 'male' as const, icon: '☀', ko: t('male_ko', '남성'), en: t('male_en', 'Male'), sub: t('male_sub', '양(陽)의 기운') },
             ]).map(({ g, icon, ko, en, sub }) => {
               const sel = form.gender === g;
               return (
@@ -474,11 +535,12 @@ export function Registry() {
           <motion.button onClick={goBack}
             style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#bba689',
-              background: 'none', border: 'none', cursor: 'pointer'
+              background: 'none', border: 'none', cursor: 'pointer', zIndex: 10
             }}
             whileTap={{ scale: 0.95 }}>
-            ← {step === 0 ? '홈으로' : '이전'}
+            ← {step === 0 ? t('nav_home', '홈으로') : t('nav_prev', '이전')}
           </motion.button>
+
           <div className="flex flex-col items-center">
             <span style={{
               fontFamily: "'Cormorant Garamond', serif", fontSize: '17px',
@@ -487,11 +549,12 @@ export function Registry() {
             <span style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '7px',
               color: '#8a7255', letterSpacing: '0.1em'
-            }}>🇰🇷 서울</span>
+            }}>🇰🇷 {t('seoul', '서울')}</span>
           </div>
-          <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#8a7255' }}>
-            {step + 1} / 8
-          </span>
+
+          <div className="flex flex-col items-end z-10">
+            <LanguageSwitcher />
+          </div>
         </div>
 
         {/* Progress dots */}
@@ -519,21 +582,21 @@ export function Registry() {
               {step >= 2 && liveSaju && (
                 <motion.div className="flex items-end gap-3 mb-5"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-                  {hasDay && <MiniPillar pillar={liveSaju.hour} label="시" />}
-                  {hasDay && <MiniPillar pillar={liveSaju.day} label="일" />}
-                  {hasMonth && <MiniPillar pillar={liveSaju.month} label="월" />}
-                  {hasYear && <MiniPillar pillar={liveSaju.year} label="년" />}
+                  {hasDay && <MiniPillar pillar={liveSaju.hour} label={t("pillar_hour", "시")} />}
+                  {hasDay && <MiniPillar pillar={liveSaju.day} label={t("pillar_day", "일")} />}
+                  {hasMonth && <MiniPillar pillar={liveSaju.month} label={t("pillar_month", "월")} />}
+                  {hasYear && <MiniPillar pillar={liveSaju.year} label={t("pillar_year", "년")} />}
                   {hasDay && (
                     <motion.div className="ml-1"
                       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
                       <span style={{
                         fontFamily: 'Pretendard, sans-serif', fontSize: '7px',
                         color: '#c9a96e', letterSpacing: '0.1em', display: 'block'
-                      }}>✦ 팔자</span>
+                      }}>✦ {t('saju_title', '팔자')}</span>
                       <span style={{
                         fontFamily: 'Pretendard, sans-serif', fontSize: '7px',
                         color: '#c9a96e', letterSpacing: '0.1em'
-                      }}>완성</span>
+                      }}>{t('saju_complete', '완성')}</span>
                     </motion.div>
                   )}
                 </motion.div>
@@ -630,14 +693,14 @@ export function Registry() {
                 transition: 'all 0.2s'
               }}
               whileTap={isNextEnabled() && !isSubmitting ? { scale: 0.97 } : {}}>
-              {step < 7 ? '다음 →' : isSubmitting ? '분석 중…' : '사주 분석 시작 →'}
+              {step < 7 ? t('btn_next', '다음 →') : isSubmitting ? t('btn_analyzing', '분석 중…') : t('btn_start_analysis', '사주 분석 시작 →')}
             </motion.button>
           )}
 
           {!showNextBtn && step !== 4 && (
             <p className="text-center mt-4"
               style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#2a2018' }}>
-              선택하면 자동으로 넘어갑니다
+              {t('auto_advance_msg', '선택하면 자동으로 넘어갑니다')}
             </p>
           )}
           {step === 4 && (
@@ -650,7 +713,7 @@ export function Registry() {
                 color: '#e8dcca', transition: 'all 0.2s'
               }}
               whileTap={{ scale: 0.97 }}>
-              다음 →
+              {t('btn_next', '다음 →')}
             </motion.button>
           )}
         </div>

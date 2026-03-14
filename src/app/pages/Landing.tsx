@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router';
 import { motion, useScroll, useTransform } from 'motion/react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SEO } from '../components/SEO';
 import { trackBeginRegistration } from '../../lib/analytics';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 const SEOUL_BG = 'https://images.unsplash.com/photo-1579085353237-916e72ecb32d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxTZW91bCUyMGNpdHklMjBkYXduJTIwbWlzdHklMjBza3lsaW5lJTIwY2luZW1hdGljfGVufDF8fHx8MTc3Mjc0MTQ0OHww&ixlib=rb-4.1.0&q=80&w=1080';
 const WOMAN_IMG = 'https://images.unsplash.com/photo-1535189005916-e5e47dc88316?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxLb3JlYW4lMjB3b21hbiUyMGVsZWdhbnQlMjBwb3J0cmFpdCUyMG1vZGVybiUyMFNlb3VsfGVufDF8fHx8MTc3Mjc0Mjg3Nnww&ixlib=rb-4.1.0&q=80&w=1080';
@@ -49,101 +51,103 @@ function SectionLabel({ en, kr }: { en: string; kr: string }) {
   );
 }
 
-/* ─── Data ─────────────────────────────────────────────── */
-const REVEAL_ITEMS = [
-  {
-    icon: '名', iconLabel: '이름', color: '#c9a96e',
-    title: '한국 이름', titleEn: 'Your Korean Name',
-    desc: '사주의 부족한 기운(용신)을 채우는 발음 오행 + 획수 성명학으로 도출한 실제 대길(大吉) 조합.',
-    sample: '이도윤 · Do-yun Lee', sampleSub: '"빛을 인도하는 자"'
-  },
-  {
-    icon: '業', iconLabel: '직업', color: '#60a5fa',
-    title: '직업 성향', titleEn: 'Career Archetype',
-    desc: '일간(日干)의 오행 특성을 현대 한국 직업군과 매칭. 당신이 한국에 살았다면 어떤 커리어로 성공했을까?',
-    sample: 'Creative Director', sampleSub: '크리에이티브 디렉터'
-  },
-  {
-    icon: '緣', iconLabel: '운명', color: '#f472b6',
-    title: '운명의 짝', titleEn: 'The Soulmate',
-    desc: '사주 궁합으로 도출된 평행우주 속 한국인 인연. 이름·성격·궁합 점수 완전 공개.',
-    sample: '박수현 · Su-hyeon Park', sampleSub: '궁합 91점 · 壬수 에너지'
-  },
-  {
-    icon: '地', iconLabel: '동네', color: '#4ade80',
-    title: '서울 동네', titleEn: 'Lucky Spot in Seoul',
-    desc: '당신의 오행 에너지가 가장 빛나는 서울의 ZIP 코드. 하루 시나리오 스크립트와 함께.',
-    sample: 'Hannam-dong · 한남동', sampleSub: 'Refined · Exclusive · Quiet Luxury'
-  },
-];
-
-const FULL_SCRIPT_ITEMS = [
-  { icon: '名', color: '#c9a96e', title: '한국 이름 + 의미 해설', free: true, desc: '성명학 대길 조합, 한자 의미 완전 해설' },
-  { icon: '業', color: '#60a5fa', title: '직업 성향 리포트', free: true, desc: '일간 특성 × 현대 한국 직업군 매칭' },
-  { icon: '☯', color: '#fbbf24', title: '일주론 · 일간 심층 분석', free: false, desc: '강점·주의·행운색·행운 숫자 분석' },
-  { icon: '🐉', color: '#fb923c', title: '띠 · 십이지신 분석', free: false, desc: '12지신 기질 + 한국식 띠 궁합' },
-  { icon: '緣', color: '#f472b6', title: '운명의 짝 프로필', free: false, desc: '이름·성격·궁합 점수 전체 공개' },
-  { icon: '地', color: '#4ade80', title: '서울 동네 + 하루 시나리오', free: false, desc: '서울에서의 평행 하루를 시나리오로' },
-  { icon: '圖', color: '#e2e8f0', title: '오행 레이더 차트', free: false, desc: '木火土금수 밸런스 시각화' },
-  { icon: '📜', color: '#c9a96e', title: '성명학 작명 원리 해설', free: false, desc: '이름이 사주를 보완하는 과학적 원리' },
-  { icon: '🪪', color: '#f5f0e8', title: 'HD ID 카드 무워터마크', free: false, desc: '다운로드 가능한 프리미엄 카드' },
-];
-
-const STEPS = [
-  {
-    num: '01', kr: '입력', title: 'The Registry',
-    desc: '영문 이름, 생년월일시, 성별, 국적 입력. 실시간으로 사주 8글자가 생성됩니다.', detail: '약 1분 소요'
-  },
-  {
-    num: '02', kr: '분석', title: 'The Montage',
-    desc: '518,400개 사주 패턴 DB와 오행 알고리즘이 당신의 운명 좌표를 서울에 찍습니다.', detail: '3–5초 처리'
-  },
-  {
-    num: '03', kr: '공개', title: 'The Reveal',
-    desc: '이름·직업은 무료. 운명의 짝, 일주론, 서울 동네, 프리미엄 ID 카드는 ₩5,900에 해금.', detail: '무료 + ₩5,900'
-  },
-];
-
-const TESTIMONIALS = [
-  {
-    name: 'Sophie L.', from: '🇫🇷 Paris', avatar: WOMAN_IMG,
-    quote: '"이지원이라는 이름이 너무 잘 맞아. 의미를 찾아보고 조금 울었어."',
-    result: '이지원 · Ji-won Lee · Designer'
-  },
-  {
-    name: 'Marcus T.', from: '🇺🇸 New York', avatar: MAN_IMG,
-    quote: '"My Korean name is 강민준. I typed it into Naver — it looked completely real. Career match is uncanny."',
-    result: '강민준 · Min-jun Kang · Developer'
-  },
-  {
-    name: 'Yuki M.', from: '🇯🇵 Tokyo', avatar: WOMAN_IMG,
-    quote: '"K-드라마에서 보던 그런 이름이 내 이름이 됐어. 일주론 분석이 소름이었어."',
-    result: '박서아 · Seo-a Park · Art Director'
-  },
-];
-
-const ELEMENTS_DETAIL = [
-  { char: '木', kr: '목·Wood', color: '#4ade80', title: '성장과 창조', desc: '甲木 리더 / 乙木 예술가' },
-  { char: '火', kr: '화·Fire', color: '#fb923c', title: '열정과 카리스마', desc: '丙火 퍼포머 / 丁火 디자이너' },
-  { char: '土', kr: '토·Earth', color: '#fbbf24', title: '안정과 신뢰', desc: '戊土 건축가 / 己土 교육자' },
-  { char: '金', kr: '금·Metal', color: '#e2e8f0', title: '정밀함과 원칙', desc: '庚金 법조인 / 辛金 의사' },
-  { char: '水', kr: '수·Water', color: '#60a5fa', title: '지성과 철학', desc: '壬水 개발자 / 癸수 연구자' },
-];
-
-const STATS = [
-  { num: '518,400', label: '사주 패턴 DB' },
-  { num: '10', label: '일간 유형' },
-  { num: '5', label: '오행 분석' },
-  { num: '9+', label: '결과 콘텐츠' },
-];
+// UI Data moved inside the component to use translations
 
 /* ─── Main Component ─────────────────────────────────────── */
 export function Landing() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll();
   const heroBgY = useTransform(scrollY, [0, 500], [0, 60]);
+
+  const REVEAL_ITEMS = useMemo(() => [
+    {
+      icon: '名', iconLabel: '이름', color: '#c9a96e',
+      title: t('reveal_1_title', '한국 이름'), titleEn: t('reveal_1_en', 'Your Korean Name'),
+      desc: t('reveal_1_desc', '사주의 부족한 기운(용신)을 채우는 발음 오행 + 획수 성명학으로 도출한 실제 대길(大吉) 조합.'),
+      sample: '이도윤 · Do-yun Lee', sampleSub: '"빛을 인도하는 자"'
+    },
+    {
+      icon: '業', iconLabel: '직업', color: '#60a5fa',
+      title: t('reveal_2_title', '직업 성향'), titleEn: t('reveal_2_en', 'Career Archetype'),
+      desc: t('reveal_2_desc', '일간(日干)의 오행 특성을 현대 한국 직업군과 매칭. 당신이 한국에 살았다면 어떤 커리어로 성공했을까?'),
+      sample: 'Creative Director', sampleSub: '크리에이티브 디렉터'
+    },
+    {
+      icon: '緣', iconLabel: '운명', color: '#f472b6',
+      title: t('reveal_3_title', '운명의 짝'), titleEn: t('reveal_3_en', 'The Soulmate'),
+      desc: t('reveal_3_desc', '사주 궁합으로 도출된 평행우주 속 한국인 인연. 이름·성격·궁합 점수 완전 공개.'),
+      sample: '박수현 · Su-hyeon Park', sampleSub: '궁합 91점 · 壬수 에너지'
+    },
+    {
+      icon: '地', iconLabel: '동네', color: '#4ade80',
+      title: t('reveal_4_title', '서울 동네'), titleEn: t('reveal_4_en', 'Lucky Spot in Seoul'),
+      desc: t('reveal_4_desc', '당신의 오행 에너지가 가장 빛나는 서울의 ZIP 코드. 하루 시나리오 스크립트와 함께.'),
+      sample: 'Hannam-dong · 한남동', sampleSub: 'Refined · Exclusive · Quiet Luxury'
+    },
+  ], [t]);
+
+  const FULL_SCRIPT_ITEMS = useMemo(() => [
+    { icon: '名', color: '#c9a96e', title: t('fs_1', '한국 이름 + 의미 해설'), free: true, desc: t('fs_1_desc', '성명학 대길 조합, 한자 의미 완전 해설') },
+    { icon: '業', color: '#60a5fa', title: t('fs_2', '직업 성향 리포트'), free: true, desc: t('fs_2_desc', '일간 특성 × 현대 한국 직업군 매칭') },
+    { icon: '☯', color: '#fbbf24', title: t('fs_3', '일주론 · 일간 심층 분석'), free: false, desc: t('fs_3_desc', '강점·주의·행운색·행운 숫자 분석') },
+    { icon: '🐉', color: '#fb923c', title: t('fs_4', '띠 · 십이지신 분석'), free: false, desc: t('fs_4_desc', '12지신 기질 + 한국식 띠 궁합') },
+    { icon: '緣', color: '#f472b6', title: t('fs_5', '운명의 짝 프로필'), free: false, desc: t('fs_5_desc', '이름·성격·궁합 점수 전체 공개') },
+    { icon: '地', color: '#4ade80', title: t('fs_6', '서울 동네 + 하루 시나리오'), free: false, desc: t('fs_6_desc', '서울에서의 평행 하루를 시나리오로') },
+    { icon: '圖', color: '#e2e8f0', title: t('fs_7', '오행 레이더 차트'), free: false, desc: t('fs_7_desc', '木火土금수 밸런스 시각화') },
+    { icon: '📜', color: '#c9a96e', title: t('fs_8', '성명학 작명 원리 해설'), free: false, desc: t('fs_8_desc', '이름이 사주를 보완하는 과학적 원리') },
+    { icon: '🪪', color: '#f5f0e8', title: t('fs_9', 'HD ID 카드 무워터마크'), free: false, desc: t('fs_9_desc', '다운로드 가능한 프리미엄 카드') },
+  ], [t]);
+
+  const STEPS = useMemo(() => [
+    {
+      num: '01', kr: t('step_1_kr', '입력'), title: t('step_1_title', 'The Registry'),
+      desc: t('step_1_desc', '영문 이름, 생년월일시, 성별, 국적 입력. 실시간으로 사주 8글자가 생성됩니다.'), detail: t('step_1_det', '약 1분 소요')
+    },
+    {
+      num: '02', kr: t('step_2_kr', '분석'), title: t('step_2_title', 'The Montage'),
+      desc: t('step_2_desc', '518,400개 사주 패턴 DB와 오행 알고리즘이 당신의 운명 좌표를 서울에 찍습니다.'), detail: t('step_2_det', '3–5초 처리')
+    },
+    {
+      num: '03', kr: t('step_3_kr', '공개'), title: t('step_3_title', 'The Reveal'),
+      desc: t('step_3_desc', '이름·직업은 무료. 운명의 짝, 일주론, 서울 동네, 프리미엄 ID 카드는 ₩5,900에 해금.'), detail: t('step_3_det', '무료 + ₩5,900')
+    },
+  ], [t]);
+
+  const TESTIMONIALS = useMemo(() => [
+    {
+      name: 'Sophie L.', from: '🇫🇷 Paris', avatar: WOMAN_IMG,
+      quote: '"이지원이라는 이름이 너무 잘 맞아. 의미를 찾아보고 조금 울었어."',
+      result: '이지원 · Ji-won Lee · Designer'
+    },
+    {
+      name: 'Marcus T.', from: '🇺🇸 New York', avatar: MAN_IMG,
+      quote: '"My Korean name is 강민준. I typed it into Naver — it looked completely real. Career match is uncanny."',
+      result: '강민준 · Min-jun Kang · Developer'
+    },
+    {
+      name: 'Yuki M.', from: '🇯🇵 Tokyo', avatar: WOMAN_IMG,
+      quote: '"K-드라마에서 보던 그런 이름이 내 이름이 됐어. 일주론 분석이 소름이었어."',
+      result: '박서아 · Seo-a Park · Art Director'
+    },
+  ], [t]); // Could translate quotes, leaving as is since users from other countries are speaking for impact.
+
+  const ELEMENTS_DETAIL = useMemo(() => [
+    { char: '木', kr: '목·Wood', color: '#4ade80', title: '성장과 창조', desc: '甲木 리더 / 乙木 예술가' },
+    { char: '火', kr: '화·Fire', color: '#fb923c', title: '열정과 카리스마', desc: '丙火 퍼포머 / 丁火 디자이너' },
+    { char: '土', kr: '토·Earth', color: '#fbbf24', title: '안정과 신뢰', desc: '戊土 건축가 / 己土 교육자' },
+    { char: '金', kr: '금·Metal', color: '#e2e8f0', title: '정밀함과 원칙', desc: '庚金 법조인 / 辛金 의사' },
+    { char: '水', kr: '수·Water', color: '#60a5fa', title: '지성과 철학', desc: '壬水 개발자 / 癸수 연구자' },
+  ], [t]);
+
+  const STATS = useMemo(() => [
+    { num: '518,400', label: '사주 패턴 DB' },
+    { num: '10', label: '일간 유형' },
+    { num: '5', label: '오행 분석' },
+    { num: '9+', label: '결과 콘텐츠' },
+  ], [t]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -196,6 +200,11 @@ export function Landing() {
           <div className="absolute inset-0"
             style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, rgba(10,10,10,0.4) 35%, rgba(10,10,10,0.75) 75%, #0a0a0a 100%)' }} />
         </motion.div>
+
+        {/* Language Switcher */}
+        <div className="absolute top-6 right-6 z-50">
+          <LanguageSwitcher />
+        </div>
 
         {/* 단청 color stripe — top */}
         <div className="absolute top-0 left-0 right-0 z-30" style={{ height: 3, display: 'flex' }}>
@@ -259,7 +268,7 @@ export function Landing() {
               fontFamily: 'Pretendard, sans-serif', color: '#c9a96e', fontSize: '9px',
               letterSpacing: '0.22em', textTransform: 'uppercase'
             }}>
-              평행우주 속 나의 한국 정체성
+              {t("landing_title1", "가장 한국적인")} {t("landing_title2", "정체성 분석")}
             </span>
             <div className="h-px w-8" style={{ background: 'linear-gradient(to left, transparent, #c9a96e)' }} />
           </motion.div>
@@ -298,10 +307,10 @@ export function Landing() {
           <motion.p className="mb-9 px-4"
             style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '13px',
-              color: '#a39585', lineHeight: 1.85
+              color: '#a39585', lineHeight: 1.85, whiteSpace: 'pre-line'
             }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
-            사주 팔자(8글자) 분석으로 당신의<br />한국 이름, 직업 성향, 운명의 짝,<br />서울 동네를 처방합니다.
+            {t('landing_subtitle', '사주 팔자(8글자) 분석으로 당신의\n한국 이름, 직업 성향, 운명의 짝,\n서울 동네를 처방합니다.')}
           </motion.p>
 
           <motion.button onClick={() => { trackBeginRegistration(); navigate('/registry'); }}
@@ -318,7 +327,7 @@ export function Landing() {
             <motion.span className="absolute inset-0"
               style={{ background: 'linear-gradient(135deg, rgba(201,169,110,0.18), rgba(201,169,110,0.06))' }}
               initial={{ opacity: 0 }} whileHover={{ opacity: 1 }} transition={{ duration: 0.25 }} />
-            <span className="relative">Begin My Reborn Journey →</span>
+            <span className="relative">{t('btn_start', '나의 정체성 알아보기')} →</span>
           </motion.button>
 
           {/* Five elements */}
@@ -376,14 +385,13 @@ export function Landing() {
             <p style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#5a4e44',
               letterSpacing: '0.28em', marginBottom: 6
-            }}>THE DIFFERENCE</p>
+            }}>{t('landing_diff_subtitle', 'THE DIFFERENCE')}</p>
             <SectionDivider />
             <h2 style={{
               fontFamily: "'Cormorant Garamond', serif", fontSize: '30px',
-              fontWeight: 300, color: '#f5f0e8', lineHeight: 1.25, marginBottom: 8
+              fontWeight: 300, color: '#f5f0e8', lineHeight: 1.25, marginBottom: 8, whiteSpace: 'pre-line'
             }}>
-              단순한 이름 짓기가<br />
-              <span style={{ color: '#c9a96e', fontStyle: 'italic' }}>아니다.</span>
+              {t('landing_diff_title', '단순한 이름 짓기가\n아니다.')}
             </h2>
           </div>
         </FadeIn>
@@ -395,11 +403,16 @@ export function Landing() {
             <p style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#3a3028',
               letterSpacing: '0.15em', marginBottom: 12
-            }}>일반 이름 생성기</p>
-            {['발음 기반 단순 변환', '획수·오행 고려 없음', '직업/운명 분석 불가', '일회성 결과물'].map(t => (
-              <div key={t} className="flex items-center gap-2 mb-2.5">
+            }}>{t('diff_normal', '일반 이름 생성기')}</p>
+            {[
+              t('diff_n1', '발음 기반 단순 변환'),
+              t('diff_n2', '획수·오행 고려 없음'),
+              t('diff_n3', '직업/운명 분석 불가'),
+              t('diff_n4', '일회성 결과물')
+            ].map(txt => (
+              <div key={txt} className="flex items-center gap-2 mb-2.5">
                 <span style={{ color: '#2e2820', fontSize: '11px' }}>✕</span>
-                <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#2e2820' }}>{t}</span>
+                <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#2e2820' }}>{txt}</span>
               </div>
             ))}
           </div>
@@ -416,10 +429,16 @@ export function Landing() {
               <span style={{ fontSize: '11px' }}>🇰🇷</span>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#c9a96e', letterSpacing: '0.15em' }}>K·REBORN</p>
             </div>
-            {['만세력 간지 8자 정확 계산', '오행·발음·획수 삼중 필터', '직업·일주론·궁합 AI 매칭', '프리미엄 ID 카드 발급', '518,400 사주 패턴 DB'].map(t => (
-              <div key={t} className="flex items-center gap-2 mb-2.5">
+            {[
+              t('diff_k1', '만세력 간지 8자 정확 계산'),
+              t('diff_k2', '오행·발음·획수 삼중 필터'),
+              t('diff_k3', '직업·일주론·궁합 AI 매칭'),
+              t('diff_k4', '프리미엄 ID 카드 발급'),
+              t('diff_k5', '518,400 사주 패턴 DB')
+            ].map(txt => (
+              <div key={txt} className="flex items-center gap-2 mb-2.5">
                 <span style={{ color: '#c9a96e', fontSize: '11px' }}>✦</span>
-                <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#8a7255' }}>{t}</span>
+                <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#8a7255' }}>{txt}</span>
               </div>
             ))}
           </div>
@@ -430,7 +449,7 @@ export function Landing() {
       {/* ═══ SECTION 2 — 4가지 처방 ═══════════════════════ */}
       <section className="px-5 py-16" style={{ borderTop: '1px solid rgba(201,169,110,0.07)' }}>
         <FadeIn>
-          <SectionLabel en="4 Revelations" kr="네 가지 운명 처방" />
+          <SectionLabel en={t('reveal_title', '4 Revelations')} kr={t('reveal_subtitle', '네 가지 운명 처방')} />
         </FadeIn>
         <div className="flex flex-col gap-4">
           {REVEAL_ITEMS.map((item, i) => (
@@ -495,7 +514,7 @@ export function Landing() {
         </div>
         <div className="relative z-10">
           <FadeIn>
-            <SectionLabel en="What You'll Receive" kr="이런 결과물을 받습니다" />
+            <SectionLabel en="What You'll Receive" kr={t('s3_kr', '이런 결과물을 받습니다')} />
           </FadeIn>
 
           {/* Sample ID card mini */}
@@ -550,7 +569,7 @@ export function Landing() {
                   backdropFilter: 'blur(2px)'
                 }}>
                 <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: '#5a4e44', letterSpacing: '0.12em' }}>
-                  ─ 당신의 카드를 잠금 해제하세요 ─
+                  {t('s3_card_lock', '─ 당신의 카드를 잠금 해제하세요 ─')}
                 </span>
               </div>
             </div>
@@ -561,7 +580,7 @@ export function Landing() {
             <p style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#5a4e44',
               letterSpacing: '0.18em', marginBottom: 12
-            }}>FULL SCRIPT INCLUDES</p>
+            }}>{t('s3_full_script', 'FULL SCRIPT INCLUDES')}</p>
             {FULL_SCRIPT_ITEMS.map(item => (
               <div key={String(item.icon)} className="flex items-center gap-3 mb-3.5">
                 <div className="w-8 h-8 shrink-0 flex items-center justify-center"
@@ -597,13 +616,12 @@ export function Landing() {
       {/* ═══ SECTION 4 — 사주 과학 ═════════════════════════ */}
       <section className="px-5 py-16" style={{ borderTop: '1px solid rgba(201,169,110,0.07)' }}>
         <FadeIn>
-          <SectionLabel en="The Science" kr="사주 과학의 원리" />
+          <SectionLabel en="The Science" kr={t('s4_title', '사주 과학의 원리')} />
           <p style={{
             fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#6b5d51',
-            lineHeight: 1.85, textAlign: 'center', marginBottom: 14
+            lineHeight: 1.85, textAlign: 'center', marginBottom: 14, whiteSpace: 'pre-line'
           }}>
-            미신이 아닙니다. 태어난 순간의 천문학적 좌표를<br />간지(干支)로 변환하고 오행 밸런스를 계산하는<br />
-            <strong style={{ color: '#8a7255' }}>데이터 과학</strong>입니다.
+            {t('s4_desc', "미신이 아닙니다. 태어난 순간의 천문학적 좌표를\n간지(干支)로 변환하고 오행 밸런스를 계산하는\n데이터 과학입니다.")}
           </p>
         </FadeIn>
         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -669,7 +687,7 @@ export function Landing() {
 
       {/* ═══ SECTION 5 — HOW IT WORKS ══════════════════════ */}
       <section className="px-5 py-16" style={{ borderTop: '1px solid rgba(201,169,110,0.07)' }}>
-        <FadeIn><SectionLabel en="How It Works" kr="3단계 프로세스" /></FadeIn>
+        <FadeIn><SectionLabel en="How It Works" kr={t('s5_title', '3단계 프로세스')} /></FadeIn>
         <div className="flex flex-col gap-6">
           {STEPS.map((step, i) => (
             <FadeIn key={step.num} delay={i * 0.1}>
@@ -716,7 +734,7 @@ export function Landing() {
           background: 'linear-gradient(180deg, rgba(201,169,110,0.025) 0%, transparent 100%)'
         }}>
         <FadeIn>
-          <SectionLabel en="Real Reactions" kr="글로벌 유저 후기" />
+          <SectionLabel en="Real Reactions" kr={t('s6_title', '글로벌 유저 후기')} />
         </FadeIn>
         <div className="flex flex-col gap-4">
           {TESTIMONIALS.map((t, i) => (
@@ -773,22 +791,20 @@ export function Landing() {
             <p style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '9px',
               color: '#5a4e44', letterSpacing: '0.25em', marginBottom: 10
-            }}>지금 이 순간에도</p>
+            }}>{t('s7_p1', '지금 이 순간에도')}</p>
             <motion.h2
               style={{
                 fontFamily: "'Cormorant Garamond', serif", fontSize: '32px',
-                fontWeight: 300, color: '#f5f0e8', lineHeight: 1.25, marginBottom: 14
+                fontWeight: 300, color: '#f5f0e8', lineHeight: 1.25, marginBottom: 14, whiteSpace: 'pre-line'
               }}
               animate={{ opacity: [0.8, 1, 0.8] }} transition={{ duration: 4, repeat: Infinity }}>
-              당신의 한국 이름이<br />
-              <span style={{ color: '#c9a96e', fontStyle: 'italic' }}>기다리고 있습니다.</span>
+              {t('s7_p2', '당신의 한국 이름이\n기다리고 있습니다.')}
             </motion.h2>
             <p style={{
               fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#6b5d51',
-              lineHeight: 1.9, marginBottom: 18
+              lineHeight: 1.9, marginBottom: 18, whiteSpace: 'pre-line'
             }}>
-              평행우주의 당신은 이미 서울 어느 동네에서,<br />
-              어떤 직업으로, 누군가를 사랑하며 살고 있습니다.
+              {t('s7_p3', '평행우주의 당신은 이미 서울 어느 동네에서,\n어떤 직업으로, 누군가를 사랑하며 살고 있습니다.')}
             </p>
 
             <div className="flex items-center gap-0 mb-8"
@@ -797,15 +813,17 @@ export function Landing() {
                 <p style={{
                   fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: '#5a4e44',
                   letterSpacing: '0.1em', marginBottom: 3
-                }}>이름 + 직업 성향</p>
-                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '16px', color: '#4ade80' }}>무료 공개</p>
+                }}>{t('s7_free_title', '이름 + 직업 성향')}</p>
+                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '16px', color: '#4ade80' }}>
+                  {t('s7_free_val', '무료 공개')}
+                </p>
               </div>
               <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(201,169,110,0.18)' }} />
               <div className="flex-1 py-4 px-4 text-center">
                 <p style={{
                   fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: '#5a4e44',
                   letterSpacing: '0.08em', marginBottom: 3
-                }}>7가지 프리미엄 분석</p>
+                }}>{t('s7_prem_title', '7가지 프리미엄 분석')}</p>
                 <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '16px', color: '#c9a96e' }}>
                   ₩5,900 <span style={{ fontSize: '11px', color: '#5a4e44' }}>/ $4.5</span>
                 </p>
@@ -820,12 +838,16 @@ export function Landing() {
                 border: '1px solid rgba(201,169,110,0.65)', color: '#f5f0e8', cursor: 'pointer'
               }}
               whileTap={{ scale: 0.97 }}>
-              Begin My Reborn Journey →
+              {t('s7_btn', 'Begin My Reborn Journey →')}
             </motion.button>
 
             <div className="flex items-center justify-center gap-5 mb-12">
-              {['🔒 보안 결제', '⚡ 즉시 결과', '🌏 전 세계'].map(t => (
-                <p key={t} style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#3a3028' }}>{t}</p>
+              {[
+                t('ft_1', '🔒 보안 결제'),
+                t('ft_2', '⚡ 즉시 결과'),
+                t('ft_3', '🌏 전 세계')
+              ].map(txt => (
+                <p key={txt} style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#3a3028' }}>{txt}</p>
               ))}
             </div>
 

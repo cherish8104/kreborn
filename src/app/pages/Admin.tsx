@@ -76,14 +76,17 @@ export function Admin() {
     const [ga4, setGa4] = useState<{
         funnel: Record<string, number>;
         daily: { date: string; users: number }[];
+        dailyTraffic: { date: string; sessions: number; users: number; newUsers: number }[];
+        newVsReturning: { type: string; users: number; sessions: number; engagementRate: number }[];
         landingViews: number;
         channel: { name: string; sessions: number; users: number }[];
         sourceMedium: { name: string; sessions: number; users: number }[];
         country: { name: string; users: number; sessions: number }[];
-        device: { name: string; sessions: number }[];
+        device: { name: string; sessions: number; users: number }[];
+        cohort: { cohortName: string; weeks: { week: number; active: number; total: number }[] }[];
         loaded: boolean;
         error?: string;
-    }>({ funnel: {}, daily: [], landingViews: 0, channel: [], sourceMedium: [], country: [], device: [], loaded: false });
+    }>({ funnel: {}, daily: [], dailyTraffic: [], newVsReturning: [], landingViews: 0, channel: [], sourceMedium: [], country: [], device: [], cohort: [], loaded: false });
 
     useEffect(() => {
         if (!supabase) return;
@@ -128,12 +131,22 @@ export function Admin() {
         setGa4Fetching(true);
         setGa4(prev => ({ ...prev, error: undefined }));
         try {
-            const { data: { session } } = await supabase!.auth.getSession();
-            const { data, error } = await supabase!.functions.invoke('ga4-report', {
-                headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
-            });
-            if (error || data?.error) {
-                setGa4(prev => ({ ...prev, loaded: true, error: data?.error || String(error) }));
+            const { data, error } = await supabase!.functions.invoke('ga4-report');
+            console.log('[GA4] invoke result:', { data, error });
+            if (error) {
+                let errMsg = error?.message ?? String(error);
+                try {
+                    const body = await (error as any).context?.json?.();
+                    console.log('[GA4] error body:', body);
+                    if (body?.error) errMsg = body.error;
+                } catch { /* ignore */ }
+                setGa4(prev => ({ ...prev, loaded: true, error: errMsg }));
+                setGa4Fetching(false);
+                return;
+            }
+            if (data?.error) {
+                console.log('[GA4] data.error:', data.error);
+                setGa4(prev => ({ ...prev, loaded: true, error: data.error }));
                 setGa4Fetching(false);
                 return;
             }
@@ -145,7 +158,7 @@ export function Admin() {
             // 일별 활성 유저 파싱 (YYYYMMDD → M월 D일)
             const daily = (data.daily?.rows ?? []).map((row: any) => {
                 const d = row.dimensionValues[0].value; // "20250310"
-                const dt = new Date(`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`);
+                const dt = new Date(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`);
                 return {
                     date: dt.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
                     users: parseInt(row.metricValues[0].value, 10),
@@ -170,9 +183,45 @@ export function Admin() {
             const device = (data.device?.rows ?? []).map((r: any) => ({
                 name: r.dimensionValues[0].value,
                 sessions: parseInt(r.metricValues[0].value, 10),
+                users: parseInt(r.metricValues[1]?.value ?? '0', 10),
             }));
 
-            setGa4({ funnel, daily, landingViews, channel, sourceMedium, country, device, loaded: true });
+            // 코호트 리텐션 파싱
+            const cohortMap: Record<string, { week: number; active: number; total: number }[]> = {};
+            for (const row of data.cohort?.rows ?? []) {
+                const name = row.dimensionValues[0].value;
+                const week = parseInt(row.dimensionValues[1].value, 10);
+                const active = parseInt(row.metricValues[0].value, 10);
+                const total = parseInt(row.metricValues[1].value, 10);
+                if (!cohortMap[name]) cohortMap[name] = [];
+                cohortMap[name].push({ week, active, total });
+            }
+            const cohort = Object.entries(cohortMap).map(([cohortName, weeks]) => ({
+                cohortName,
+                weeks: weeks.sort((a, b) => a.week - b.week),
+            }));
+
+            // 30일 트래픽 트렌드 파싱
+            const dailyTraffic = (data.dailyTraffic?.rows ?? []).map((r: any) => {
+                const d = r.dimensionValues[0].value;
+                const dt = new Date(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`);
+                return {
+                    date: dt.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+                    sessions: parseInt(r.metricValues[0].value, 10),
+                    users: parseInt(r.metricValues[1].value, 10),
+                    newUsers: parseInt(r.metricValues[2].value, 10),
+                };
+            });
+
+            // 신규 vs 재방문 파싱
+            const newVsReturning = (data.newVsReturning?.rows ?? []).map((r: any) => ({
+                type: r.dimensionValues[0].value,
+                users: parseInt(r.metricValues[0].value, 10),
+                sessions: parseInt(r.metricValues[1].value, 10),
+                engagementRate: parseFloat(r.metricValues[2].value),
+            }));
+
+            setGa4({ funnel, daily, dailyTraffic, newVsReturning, landingViews, channel, sourceMedium, country, device, cohort, loaded: true });
         } catch (e) {
             setGa4(prev => ({ ...prev, loaded: true, error: String(e) }));
         } finally {
@@ -194,8 +243,10 @@ export function Admin() {
         const byDay: Record<string, number> = {};
 
         users.forEach(u => {
-            if (u.gender) byGender[u.gender] = (byGender[u.gender] || 0) + 1;
-            if (u.nationality) byNationality[u.nationality] = (byNationality[u.nationality] || 0) + 1;
+            const gender = u.gender || u.user_input_data?.gender;
+            if (gender) byGender[gender] = (byGender[gender] || 0) + 1;
+            const nationality = u.nationality || u.user_input_data?.nationality;
+            if (nationality) byNationality[nationality] = (byNationality[nationality] || 0) + 1;
             const el = u.saju_data?.dominantElement;
             if (el) byElement[el] = (byElement[el] || 0) + 1;
             const dm = u.saju_data?.dayMasterTitle;
@@ -219,9 +270,6 @@ export function Admin() {
         return { today, week, paid, byGender, byElement, topNationalities, topDayMasters, last7 };
     }, [users]);
 
-    const ELEMENT_COLORS: Record<string, string> = {
-        wood: '#4ade80', fire: '#fb923c', earth: '#fbbf24', metal: '#e2e8f0', water: '#60a5fa'
-    };
     const ELEMENT_KR: Record<string, string> = {
         wood: '목 木', fire: '화 火', earth: '토 土', metal: '금 金', water: '수 水'
     };
@@ -345,8 +393,8 @@ export function Admin() {
                             <table className="w-full text-left text-sm">
                                 <thead>
                                     <tr style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}` }}>
-                                        {['생성일', '이메일', '본명', '생성 한국명', '오행/일간', '결제'].map(h => (
-                                            <th key={h} className="px-4 py-3 font-normal" style={{ color: GOLD, fontSize: '11px', letterSpacing: '0.08em' }}>{h}</th>
+                                        {['생성일', '이메일', '본명', '성별', '국적', '생년월일(시)', '생성 한국명', '오행/일간', '결과 링크', '결제'].map(h => (
+                                            <th key={h} className="px-4 py-3 font-normal whitespace-nowrap" style={{ color: GOLD, fontSize: '11px', letterSpacing: '0.08em' }}>{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
@@ -361,10 +409,24 @@ export function Admin() {
                                                     {new Date(u.created_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                                 </td>
                                                 <td className="px-4 py-3" style={{ color: '#e8dcca', fontSize: '12px' }}>{u.email || '-'}</td>
-                                                <td className="px-4 py-3" style={{ color: '#bba689' }}>{u.original_name || '-'}</td>
-                                                <td className="px-4 py-3 font-bold" style={{ color: GOLD }}>{u.generated_full_name || '-'}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#bba689' }}>{u.original_name || '-'}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#bba689', fontSize: '11px' }}>
+                                                    {u.gender === 'male' || u.user_input_data?.gender === 'male' ? '남성' : u.gender === 'female' || u.user_input_data?.gender === 'female' ? '여성' : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#bba689', fontSize: '11px' }}>{u.nationality || u.user_input_data?.nationality || '-'}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#bba689', fontSize: '11px' }}>
+                                                    {u.birth_year ? `${u.birth_year}.${u.birth_month}.${u.birth_day} (${u.birth_hour}시)` : (u.user_input_data?.birthYear ? `${u.user_input_data.birthYear}.${u.user_input_data.birthMonth}.${u.user_input_data.birthDay} (${u.user_input_data.birthHour}시)` : '-')}
+                                                </td>
+                                                <td className="px-4 py-3 font-bold whitespace-nowrap" style={{ color: GOLD }}>{u.generated_korean_name || u.generated_full_name || '-'}</td>
                                                 <td className="px-4 py-3" style={{ fontSize: '11px', color: '#8a7255' }}>
                                                     {u.saju_data?.lackingElement ? ELEMENT_KR[u.saju_data.lackingElement] || u.saju_data.lackingElement : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap" style={{ fontSize: '11px' }}>
+                                                    {u.share_code ? (
+                                                        <a href={`/s/${u.share_code}`} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline' }}>
+                                                            결과 보기 ↗
+                                                        </a>
+                                                    ) : '-'}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <span style={{
@@ -472,60 +534,81 @@ export function Admin() {
                             })()}
                         </div>
 
-                        {/* Breakdown grids */}
+                        {/* 코호트 리텐션 매트릭스 */}
+                        <div className="p-6 rounded mb-6" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                            <div className="flex items-center gap-2 mb-5">
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em' }}>주간 코호트 리텐션</p>
+                                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: 3, background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}>GA4</span>
+                            </div>
+                            {ga4.cohort.length > 0 ? (
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Pretendard, sans-serif', fontSize: '11px' }}>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ textAlign: 'left', padding: '6px 12px', color: '#5a4e44', fontWeight: 400, whiteSpace: 'nowrap' }}>코호트</th>
+                                                <th style={{ padding: '6px 10px', color: '#5a4e44', fontWeight: 400 }}>유저수</th>
+                                                {Array.from({ length: 6 }, (_, i) => (
+                                                    <th key={i} style={{ padding: '6px 10px', color: '#5a4e44', fontWeight: 400 }}>W{i}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {ga4.cohort.map(({ cohortName, weeks }) => {
+                                                const total = weeks.find(w => w.week === 0)?.total ?? 0;
+                                                return (
+                                                    <tr key={cohortName}>
+                                                        <td style={{ padding: '6px 12px', color: '#bba689', whiteSpace: 'nowrap' }}>{cohortName}</td>
+                                                        <td style={{ padding: '6px 10px', color: '#8a7255', textAlign: 'center' }}>{total.toLocaleString()}</td>
+                                                        {Array.from({ length: 6 }, (_, i) => {
+                                                            const w = weeks.find(x => x.week === i);
+                                                            const pct = total > 0 && w ? Math.round((w.active / total) * 100) : null;
+                                                            const alpha = pct !== null ? 0.06 + (pct / 100) * 0.45 : 0;
+                                                            return (
+                                                                <td key={i} style={{ padding: '6px 10px', textAlign: 'center', background: pct !== null ? `rgba(201,169,110,${alpha})` : 'transparent', color: pct !== null ? GOLD : '#3a3028', borderRadius: 3 }}>
+                                                                    {pct !== null ? `${pct}%` : '—'}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p style={{ fontSize: '12px', color: '#3a3028' }}>GA4 데이터 로딩 중…</p>
+                            )}
+                        </div>
+
+                        {/* 국가 + 디바이스 */}
                         <div className="grid grid-cols-2 gap-6">
-                            {/* By element */}
                             <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>오행 분포 (부족 원소)</p>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>국가별 유저 (TOP 8)</p>
                                 <div className="flex flex-col gap-3">
-                                    {Object.entries(stats.byElement).sort((a, b) => b[1] - a[1]).map(([el, cnt]) => (
-                                        <MiniBar key={el} label={ELEMENT_KR[el] || el} value={cnt}
-                                            max={Math.max(...Object.values(stats.byElement))}
-                                            color={ELEMENT_COLORS[el] || GOLD} />
-                                    ))}
-                                    {Object.keys(stats.byElement).length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
+                                    {ga4.country.length > 0
+                                        ? ga4.country.map(c => (
+                                            <MiniBar key={c.name} label={c.name} value={c.users} max={ga4.country[0]?.users || 1} />
+                                        ))
+                                        : <p style={{ color: '#5a4e44', fontSize: '12px' }}>GA4 데이터 없음</p>}
                                 </div>
                             </div>
 
-                            {/* By nationality */}
                             <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>국적 분포 (TOP 6)</p>
-                                <div className="flex flex-col gap-3">
-                                    {stats.topNationalities.map(([nat, cnt]) => (
-                                        <MiniBar key={nat} label={nat} value={cnt}
-                                            max={stats.topNationalities[0]?.[1] || 1} />
-                                    ))}
-                                    {stats.topNationalities.length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
-                                </div>
-                            </div>
-
-                            {/* By gender */}
-                            <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>성별 분포</p>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>디바이스 분포</p>
                                 <div className="flex gap-4">
-                                    {Object.entries(stats.byGender).map(([g, cnt]) => {
-                                        const pct = users.length > 0 ? Math.round(cnt / users.length * 100) : 0;
-                                        return (
-                                            <div key={g} className="flex-1 rounded p-4 text-center" style={{ background: GOLD_DIM, border: `1px solid rgba(201,169,110,0.2)` }}>
-                                                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: GOLD }}>{pct}%</p>
-                                                <p style={{ fontSize: '11px', color: '#bba689', marginTop: 4 }}>{g === 'male' ? '남성' : g === 'female' ? '여성' : g}</p>
-                                                <p style={{ fontSize: '10px', color: '#5a4e44' }}>{cnt}명</p>
-                                            </div>
-                                        );
-                                    })}
-                                    {Object.keys(stats.byGender).length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
-                                </div>
-                            </div>
-
-                            {/* By day master */}
-                            <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>일간 분포 (TOP 8)</p>
-                                <div className="flex flex-col gap-3">
-                                    {stats.topDayMasters.map(([dm, cnt]) => (
-                                        <MiniBar key={dm} label={dm} value={cnt}
-                                            max={stats.topDayMasters[0]?.[1] || 1} />
-                                    ))}
-                                    {stats.topDayMasters.length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
+                                    {ga4.device.length > 0 ? (() => {
+                                        const total = ga4.device.reduce((s, d) => s + d.sessions, 0) || 1;
+                                        return ga4.device.map(d => {
+                                            const pct = Math.round(d.sessions / total * 100);
+                                            return (
+                                                <div key={d.name} className="flex-1 rounded p-4 text-center" style={{ background: GOLD_DIM, border: `1px solid rgba(201,169,110,0.2)` }}>
+                                                    <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: GOLD }}>{pct}%</p>
+                                                    <p style={{ fontSize: '11px', color: '#bba689', marginTop: 4 }}>{d.name}</p>
+                                                    <p style={{ fontSize: '10px', color: '#5a4e44' }}>{d.sessions.toLocaleString()} 세션</p>
+                                                </div>
+                                            );
+                                        });
+                                    })() : <p style={{ color: '#5a4e44', fontSize: '12px' }}>GA4 데이터 없음</p>}
                                 </div>
                             </div>
                         </div>
@@ -550,83 +633,150 @@ export function Admin() {
 
                         {/* 요약 stat cards */}
                         {(() => {
-                            const totalSessions = ga4.channel.reduce((s, c) => s + c.sessions, 0);
+                            const totalSessions = ga4.dailyTraffic.reduce((s, d) => s + d.sessions, 0);
+                            const totalUsers = ga4.dailyTraffic.reduce((s, d) => s + d.users, 0);
+                            const totalNew = ga4.dailyTraffic.reduce((s, d) => s + d.newUsers, 0);
                             const topChannel = ga4.channel[0]?.name ?? '-';
-                            const topSource = ga4.sourceMedium[0]?.name ?? '-';
                             const mobileDevice = ga4.device.find(d => d.name === 'mobile');
                             const totalDevSessions = ga4.device.reduce((s, d) => s + d.sessions, 0);
                             const mobilePct = totalDevSessions > 0 && mobileDevice
                                 ? Math.round(mobileDevice.sessions / totalDevSessions * 100) : 0;
+                            const newPct = totalUsers > 0 ? Math.round(totalNew / totalUsers * 100) : 0;
                             return (
-                                <div className="grid grid-cols-4 gap-4 mb-8">
-                                    <StatCard label="총 세션" value={totalSessions.toLocaleString()} />
-                                    <StatCard label="TOP 채널" value={topChannel} />
-                                    <StatCard label="TOP 소스" value={topSource.split(' / ')[0]} />
-                                    <StatCard label="모바일 비율" value={`${mobilePct}%`} sub={`데스크톱 ${100 - mobilePct}%`} />
+                                <div className="grid grid-cols-4 gap-4 mb-6">
+                                    <StatCard label="총 세션 (30일)" value={totalSessions.toLocaleString()} />
+                                    <StatCard label="활성 유저 (30일)" value={totalUsers.toLocaleString()} />
+                                    <StatCard label="신규 유저 비율" value={`${newPct}%`} sub={`재방문 ${100 - newPct}%`} />
+                                    <StatCard label="TOP 채널" value={topChannel} sub={`모바일 ${mobilePct}%`} />
                                 </div>
                             );
                         })()}
 
-                        <div className="grid grid-cols-2 gap-6 mb-6">
+                        {/* 30일 세션 트렌드 */}
+                        <div className="p-6 rounded mb-6" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                            <div className="flex items-center gap-2 mb-5">
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em' }}>일별 세션 트렌드 (최근 30일)</p>
+                                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: 3, background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}>GA4</span>
+                            </div>
+                            {(() => {
+                                const data = ga4.dailyTraffic;
+                                if (data.length === 0) return <p style={{ fontSize: '12px', color: '#3a3028' }}>데이터 없음</p>;
+                                const maxSessions = Math.max(...data.map(d => d.sessions), 1);
+                                // 7일마다 레이블 표시
+                                return (
+                                    <div className="flex items-end gap-1" style={{ height: 120 }}>
+                                        {data.map((d, i) => {
+                                            const h = Math.max((d.sessions / maxSessions) * 100, d.sessions > 0 ? 4 : 2);
+                                            const showLabel = i === 0 || i === data.length - 1 || i % 7 === 0;
+                                            return (
+                                                <div key={d.date} className="flex flex-col items-center gap-1 flex-1">
+                                                    <div title={`${d.date}: ${d.sessions}세션`} style={{ width: '100%', height: `${h}%`, background: d.sessions > 0 ? GOLD : 'rgba(255,255,255,0.04)', borderRadius: 2, opacity: 0.75, transition: 'height 0.4s ease' }} />
+                                                    {showLabel && <span style={{ fontSize: '8px', color: '#5a4e44', whiteSpace: 'nowrap', transform: 'rotate(-30deg)', transformOrigin: 'top left', marginTop: 4 }}>{d.date}</span>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* 채널 + 신규/재방문 + 디바이스 */}
+                        <div className="grid grid-cols-3 gap-6 mb-6">
                             {/* 채널 그룹 */}
                             <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>채널 그룹</p>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>채널 그룹 (90일)</p>
                                 <div className="flex flex-col gap-3">
                                     {ga4.channel.length === 0
-                                        ? <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음 (GA4 연동 확인)</p>
+                                        ? <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>
                                         : ga4.channel.map(c => (
-                                            <MiniBar key={c.name} label={c.name} value={c.sessions}
-                                                max={ga4.channel[0]?.sessions || 1} />
+                                            <MiniBar key={c.name} label={c.name} value={c.sessions} max={ga4.channel[0]?.sessions || 1} />
                                         ))}
                                 </div>
                             </div>
 
-                            {/* 디바이스 + 국가 */}
-                            <div className="flex flex-col gap-4">
-                                {/* 디바이스 */}
-                                <div className="p-5 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-                                    <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 12 }}>디바이스</p>
-                                    <div className="flex gap-3">
-                                        {ga4.device.map(d => {
-                                            const total = ga4.device.reduce((s, x) => s + x.sessions, 0) || 1;
-                                            const pct = Math.round(d.sessions / total * 100);
-                                            const icon = d.name === 'mobile' ? '📱' : d.name === 'tablet' ? '📟' : '🖥️';
-                                            return (
-                                                <div key={d.name} className="flex-1 rounded p-3 text-center"
-                                                    style={{ background: GOLD_DIM, border: `1px solid rgba(201,169,110,0.2)` }}>
-                                                    <p style={{ fontSize: '18px', marginBottom: 4 }}>{icon}</p>
-                                                    <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', color: GOLD }}>{pct}%</p>
-                                                    <p style={{ fontSize: '10px', color: '#bba689', marginTop: 2 }}>{d.name}</p>
-                                                </div>
-                                            );
-                                        })}
-                                        {ga4.device.length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
-                                    </div>
+                            {/* 신규 vs 재방문 */}
+                            <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>신규 vs 재방문 (90일)</p>
+                                <div className="flex flex-col gap-4">
+                                    {ga4.newVsReturning.length === 0
+                                        ? <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>
+                                        : (() => {
+                                            const total = ga4.newVsReturning.reduce((s, r) => s + r.users, 0) || 1;
+                                            return ga4.newVsReturning.map(r => {
+                                                const pct = Math.round(r.users / total * 100);
+                                                const label = r.type === 'new' ? '신규' : r.type === 'returning' ? '재방문' : r.type;
+                                                const engPct = Math.round(r.engagementRate * 100);
+                                                return (
+                                                    <div key={r.type}>
+                                                        <div className="flex justify-between mb-1">
+                                                            <span style={{ fontSize: '11px', color: '#bba689' }}>{label}</span>
+                                                            <span style={{ fontSize: '11px', color: GOLD }}>{pct}%</span>
+                                                        </div>
+                                                        <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 4 }}>
+                                                            <div style={{ width: `${pct}%`, height: '100%', background: GOLD, borderRadius: 4 }} />
+                                                        </div>
+                                                        <p style={{ fontSize: '10px', color: '#5a4e44', marginTop: 3 }}>
+                                                            {r.users.toLocaleString()}명 · 참여율 {engPct}%
+                                                        </p>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
                                 </div>
+                            </div>
 
-                                {/* 국가 TOP 5 */}
-                                <div className="p-5 rounded flex-1" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-                                    <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 12 }}>국가 TOP 5</p>
-                                    <div className="flex flex-col gap-2">
-                                        {ga4.country.slice(0, 5).map(c => (
-                                            <MiniBar key={c.name} label={c.name} value={c.users}
-                                                max={ga4.country[0]?.users || 1} />
-                                        ))}
-                                        {ga4.country.length === 0 && <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>}
-                                    </div>
+                            {/* 디바이스 */}
+                            <div className="p-6 rounded" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>디바이스 (90일)</p>
+                                <div className="flex flex-col gap-3">
+                                    {ga4.device.length === 0
+                                        ? <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>
+                                        : (() => {
+                                            const total = ga4.device.reduce((s, d) => s + d.sessions, 0) || 1;
+                                            return ga4.device.map(d => {
+                                                const pct = Math.round(d.sessions / total * 100);
+                                                const icon = d.name === 'mobile' ? '📱' : d.name === 'tablet' ? '📟' : '🖥️';
+                                                return (
+                                                    <div key={d.name} className="flex items-center gap-3">
+                                                        <span style={{ fontSize: '14px' }}>{icon}</span>
+                                                        <div className="flex-1">
+                                                            <div className="flex justify-between mb-1">
+                                                                <span style={{ fontSize: '11px', color: '#bba689' }}>{d.name}</span>
+                                                                <span style={{ fontSize: '11px', color: GOLD }}>{pct}%</span>
+                                                            </div>
+                                                            <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3 }}>
+                                                                <div style={{ width: `${pct}%`, height: '100%', background: GOLD, borderRadius: 3 }} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* 국가 TOP 8 */}
+                        <div className="p-6 rounded mb-6" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                            <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', marginBottom: 16 }}>국가별 활성 유저 (TOP 8 · 90일)</p>
+                            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                                {ga4.country.length === 0
+                                    ? <p style={{ color: '#5a4e44', fontSize: '12px' }}>데이터 없음</p>
+                                    : ga4.country.map(c => (
+                                        <MiniBar key={c.name} label={c.name} value={c.users} max={ga4.country[0]?.users || 1} />
+                                    ))}
                             </div>
                         </div>
 
                         {/* 소스/매체 테이블 */}
                         <div className="rounded overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
                             <div className="px-5 py-3" style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}` }}>
-                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em' }}>소스 / 매체 (TOP 15)</p>
+                                <p style={{ fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em' }}>소스 / 매체 (TOP 15 · 90일)</p>
                             </div>
                             <table className="w-full text-left text-sm">
                                 <thead>
                                     <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${BORDER}` }}>
-                                        {['소스 / 매체', '세션', '유저', '세션 비중'].map(h => (
+                                        {['소스 / 매체', '세션', '유저', '비중'].map(h => (
                                             <th key={h} className="px-4 py-3 font-normal"
                                                 style={{ color: GOLD, fontSize: '11px', letterSpacing: '0.08em' }}>{h}</th>
                                         ))}
@@ -640,9 +790,7 @@ export function Admin() {
                                             return ga4.sourceMedium.map((r, i) => (
                                                 <tr key={r.name} style={{ borderBottom: `1px solid rgba(201,169,110,0.05)` }}
                                                     className="hover:bg-[rgba(201,169,110,0.03)] transition-colors">
-                                                    <td className="px-4 py-3" style={{ color: i === 0 ? GOLD : '#e8dcca', fontSize: '12px' }}>
-                                                        {r.name}
-                                                    </td>
+                                                    <td className="px-4 py-3" style={{ color: i === 0 ? GOLD : '#e8dcca', fontSize: '12px' }}>{r.name}</td>
                                                     <td className="px-4 py-3" style={{ color: '#bba689' }}>{r.sessions.toLocaleString()}</td>
                                                     <td className="px-4 py-3" style={{ color: '#8a7255' }}>{r.users.toLocaleString()}</td>
                                                     <td className="px-4 py-3">
@@ -709,7 +857,7 @@ export function Admin() {
                                                     {new Date(u.updated_at || u.created_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                                 </td>
                                                 <td className="px-4 py-3" style={{ color: '#e8dcca', fontSize: '12px' }}>{u.email || '-'}</td>
-                                                <td className="px-4 py-3" style={{ color: '#bba689' }}>{u.generated_full_name || u.original_name || '-'}</td>
+                                                <td className="px-4 py-3" style={{ color: '#bba689' }}>{u.generated_korean_name || u.generated_full_name || u.original_name || '-'}</td>
                                                 <td className="px-4 py-3" style={{ color: GOLD }}>$4.50</td>
                                                 <td className="px-4 py-3">
                                                     <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: 4, background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}>

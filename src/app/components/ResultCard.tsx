@@ -5,6 +5,7 @@
  * mode='full'    → all sections visible
  */
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import type { KoreanIdentity, SajuData } from '../utils/sajuEngine';
 import { ELEMENT_LABELS } from '../utils/sajuEngine';
 import type { UserInput } from '../store/UserContext';
@@ -103,6 +104,7 @@ interface ResultCardProps {
 }
 
 export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, onUnlock }: ResultCardProps) {
+  const { t } = useTranslation();
   const locked = mode === 'preview';
   const { saju, soulmate, neighborhood } = identity;
   const elLabel = ELEMENT_LABELS[saju.lackingElement];
@@ -131,10 +133,10 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
               fontFamily: 'Pretendard, sans-serif', fontSize: '7px',
               color: '#5a4e44', letterSpacing: '0.25em', marginBottom: 1
             }}>
-              K-REBORN · PARALLEL LIFE
+              {t('sr_parallel_identity', 'K-REBORN · PARALLEL LIFE')}
             </p>
             <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '7px', color: '#2a2018' }}>
-              IDENTITY CARD · 신원 확인서
+              {t('rc_identity_card_kr', 'IDENTITY CARD · 신원 확인서')}
             </p>
           </div>
           <div className="text-right">
@@ -263,7 +265,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
             color: locked ? '#8a7255' : '#c9a96e',
             letterSpacing: '0.18em', transition: 'color 0.5s'
           }}>
-            {locked ? '🔒 FULL SCRIPT PREVIEW' : '✦ FULL SCRIPT INCLUDED'}
+            {locked ? `🔒 ${t('rc_preview', 'FULL SCRIPT PREVIEW')}` : `✦ ${t('rc_included', 'FULL SCRIPT INCLUDED')}`}
           </span>
           <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.12)' }} />
         </div>
@@ -274,13 +276,13 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
       <div className="px-5 pb-4">
         <div className="p-4" style={{ border: '1px solid rgba(201,169,110,0.14)', background: 'rgba(255,255,255,0.01)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>사주 시간 서사 · TIME NARRATIVE</span>
+            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>{t('rc_time_narrative', '사주 시간 서사 · TIME NARRATIVE')}</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} onUnlock={onUnlock} label="서사 시나리오 잠금 해제">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_narrative', '서사 시나리오 잠금 해제')}>
             <div style={{ padding: '2px 0' }}>
-              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>과거의 흔적과 미래의 절정기</p>
-              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', lineHeight: 1.6 }}>당신의 사주에 새겨진 시간의 흐름을 분석하여 인생의 결정적 타이밍을 알려드립니다.</p>
+              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>{t('rc_past_future', '과거의 흔적과 미래의 절정기')}</p>
+              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', lineHeight: 1.6 }}>{t('rc_time_flow', '당신의 사주에 새겨진 시간의 흐름을 분석하여 인생의 결정적 타이밍을 알려드립니다.')}</p>
             </div>
           </LockedSlot>
         </div>
@@ -289,18 +291,18 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
       <div className="px-5 pb-4">
         <div className="p-4" style={{ border: '1px solid rgba(201,169,110,0.14)', background: 'rgba(255,255,255,0.01)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>일주론 심층 분석 · DAY MASTER</span>
+            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>{t('rc_day_master_analysis', '일주론 심층 분석 · DAY MASTER')}</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} onUnlock={onUnlock} label="심층 리포트 잠금 해제">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_report', '심층 리포트 잠금 해제')}>
             <div className="flex items-center justify-between">
               <div>
-                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', color: '#f5f0e8', fontWeight: 300, marginBottom: 2 }}>{saju.day.stem}{saju.day.branch} <span style={{ fontSize: '14px', color: '#bba689' }}>일주</span></p>
-                <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#8a7255', marginTop: 2 }}>타고난 강점과 주의점 리포트</p>
+                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', color: '#f5f0e8', fontWeight: 300, marginBottom: 2 }}>{saju.day.stem}{saju.day.branch} <span style={{ fontSize: '14px', color: '#bba689' }}>{t('rc_day_pillar', '일주')}</span></p>
+                <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#8a7255', marginTop: 2 }}>{t('rc_born_strength', '타고난 강점과 주의점 리포트')}</p>
               </div>
               <div className="flex flex-col gap-1 text-center">
-                <div style={{ background: 'rgba(74,222,128,0.05)', padding: '4px 10px', border: '1px solid rgba(74,222,128,0.15)' }}><span style={{ fontSize: '9px', color: '#4ade80' }}>강점 분석</span></div>
-                <div style={{ background: 'rgba(251,146,60,0.05)', padding: '4px 10px', border: '1px solid rgba(251,146,60,0.15)' }}><span style={{ fontSize: '9px', color: '#fb923c' }}>주의점</span></div>
+                <div style={{ background: 'rgba(74,222,128,0.05)', padding: '4px 10px', border: '1px solid rgba(74,222,128,0.15)' }}><span style={{ fontSize: '9px', color: '#4ade80' }}>{t('sr_strength', '강점')}</span></div>
+                <div style={{ background: 'rgba(251,146,60,0.05)', padding: '4px 10px', border: '1px solid rgba(251,146,60,0.15)' }}><span style={{ fontSize: '9px', color: '#fb923c' }}>{t('sr_caution', '주의')}</span></div>
               </div>
             </div>
           </LockedSlot>
@@ -310,16 +312,16 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
       <div className="px-5 pb-4">
         <div className="p-4" style={{ border: '1px solid rgba(201,169,110,0.14)', background: 'rgba(255,255,255,0.01)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>띠 분석 · CHINESE ZODIAC</span>
+            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>{t('rc_zodiac_analysis', '띠 분석 · CHINESE ZODIAC')}</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} onUnlock={onUnlock} label="띠별 상세 성향 공개">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_zodiac', '띠별 상세 성향 공개')}>
             <div style={{ padding: '2px 0' }}>
-              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>십이지신과 기운의 조화</p>
+              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>{t('rc_zodiac_harmony', '십이지신과 기운의 조화')}</p>
               <div className="flex items-center gap-3">
                 <span style={{ fontSize: '24px' }}>{saju.year.branchAnimalEmoji || '🐉'}</span>
                 <div>
-                  <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', marginTop: 2 }}>나와 잘 맞는 띠 궁합 및 성향 분석</p>
+                  <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', marginTop: 2 }}>{t('rc_zodiac_match', '나와 잘 맞는 띠 궁합 및 성향 분석')}</p>
                 </div>
               </div>
             </div>
@@ -330,18 +332,18 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
       <div className="px-5 pb-4">
         <div className="p-4" style={{ border: '1px solid rgba(201,169,110,0.14)', background: 'rgba(255,255,255,0.01)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>오행 블루프린트 · RADAR CHART</span>
+            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>{t('rc_radar_chart', '오행 블루프린트 · RADAR CHART')}</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} onUnlock={onUnlock} label="오행 에너지 차트 공개">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_radar', '오행 에너지 차트 공개')}>
             <div style={{ padding: '2px 0' }}>
-              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>음양오행 밸런스</p>
+              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>{t('rc_yin_yang_balance', '음양오행 밸런스')}</p>
               <div className="flex items-center gap-4">
                 <div style={{ width: 44, height: 44, borderRadius: '50%', border: '1px dashed rgba(201,169,110,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span style={{ fontSize: '16px' }}>📊</span>
                 </div>
                 <div>
-                  <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', marginTop: 2 }}>강한 기운과 보완점 시각화 차트</p>
+                  <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#bba689', marginTop: 2 }}>{t('rc_strong_weak', '강한 기운과 보완점 시각화 차트')}</p>
                 </div>
               </div>
             </div>
@@ -352,12 +354,12 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
       <div className="px-5 pb-4">
         <div className="p-4" style={{ border: '1px solid rgba(201,169,110,0.14)', background: 'rgba(255,255,255,0.01)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>운명의 짝 · SOULMATE</span>
+            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>{t('rc_soulmate', '운명의 짝 · SOULMATE')}</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} onUnlock={onUnlock} label="운명의 짝 정보 확인">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_soulmate_info', '운명의 짝 정보 확인')}>
             <div style={{ padding: '2px 0' }}>
-              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>당신의 평행우주 파트너</p>
+              <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>{t('rc_parallel_partner', '당신의 평행우주 파트너')}</p>
               <div className="flex items-center justify-between">
                 <div>
                   <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '26px', fontWeight: 400, color: '#f5f0e8', lineHeight: 1.1 }}>{soulmate.name}</p>
@@ -383,10 +385,10 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
       <div className="px-5 pb-5">
         <div className="p-4" style={{ border: '1px solid rgba(201,169,110,0.14)', background: 'rgba(255,255,255,0.01)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>서울 동네 시나리오 · LUCKY SPOT</span>
+            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>{t('rc_seoul_scenario', '서울 동네 시나리오 · LUCKY SPOT')}</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} onUnlock={onUnlock} label="행운의 동네 시나리오 공개">
+          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_lucky_spot', '행운의 동네 시나리오 공개')}>
             <div style={{ padding: '2px 0' }}>
               <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 300, color: '#4ade80', lineHeight: 1.15, marginBottom: 4 }}>{neighborhood.name}</p>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#bba689', marginTop: 2 }}>{neighborhood.nameKr}</p>
@@ -404,7 +406,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
             K-REBORN © 2026
           </span>
           <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '7px', color: '#1e1810' }}>
-            {userInput.nationality} → 대한민국
+            {userInput.nationality} → {t('sr_korea', '대한민국')}
           </span>
         </div>
       </div>
