@@ -60,30 +60,41 @@ export function Reveal() {
     setPayStep('loading');
 
     const oid = orderId ?? null;
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
     verifyOrder(oid, effectiveShareCode).then((paid) => {
+      if (cancelled) return;
       console.log('[verify] result:', paid);
       if (paid) {
         setPayStep('success');
         trackPurchase({ transaction_id: oid ?? 'unknown' });
-        setTimeout(() => { setIsPaid(true); navigate('/full-script'); }, 1800);
+        setTimeout(() => { if (!cancelled) { setIsPaid(true); navigate('/full-script'); } }, 1800);
       } else {
-        // 웹훅 지연 가능성 — 최대 20초 폴링
+        // 웹훅 지연 가능성 — 최대 60초 폴링 (30회 × 2초)
         let attempts = 0;
-        const poll = setInterval(async () => {
+        pollTimer = setInterval(async () => {
+          if (cancelled) { if (pollTimer) clearInterval(pollTimer); return; }
           attempts++;
           const retried = await verifyOrder(oid, effectiveShareCode);
+          if (cancelled) return;
           if (retried) {
-            clearInterval(poll);
+            if (pollTimer) clearInterval(pollTimer);
             setPayStep('success');
             trackPurchase({ transaction_id: oid ?? 'unknown' });
-            setTimeout(() => { setIsPaid(true); navigate('/full-script'); }, 1800);
-          } else if (attempts >= 10) {
-            clearInterval(poll);
+            setTimeout(() => { if (!cancelled) { setIsPaid(true); navigate('/full-script'); } }, 1800);
+          } else if (attempts >= 30) {
+            if (pollTimer) clearInterval(pollTimer);
             setPayStep('idle');
           }
         }, 2000);
       }
     });
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearInterval(pollTimer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareCode]);
 

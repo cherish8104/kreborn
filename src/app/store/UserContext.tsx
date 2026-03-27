@@ -45,7 +45,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return s ? JSON.parse(s) : null;
   });
 
-  const [isPaid, setIsPaidState] = useState(false);
+  const [isPaid, setIsPaidState] = useState(() => read('kreborn_is_paid') === '1');
 
   const [shareCode, setShareCodeState] = useState<string | null>(() => read('kreborn_share_code'));
 
@@ -59,7 +59,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     write('kreborn_identity', JSON.stringify(id));
   };
 
-  const setIsPaid = (paid: boolean) => setIsPaidState(paid);
+  const setIsPaid = (paid: boolean) => {
+    setIsPaidState(paid);
+    write('kreborn_is_paid', paid ? '1' : '0');
+  };
 
   const setShareCode = (code: string) => {
     setShareCodeState(code);

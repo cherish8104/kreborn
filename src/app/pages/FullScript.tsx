@@ -39,7 +39,8 @@ function SectionTitle({ title, titleKr, emoji }: { title: string; titleKr: strin
 
 const CustomRadarTick = (props: { x?: number; y?: number; index?: number }) => {
   const { x = 0, y = 0, index = 0 } = props;
-  const labels = ['木 목', '火 화', '土 토', '金 금', '水 수'];
+  const { t } = useTranslation();
+  const labels = [t('element_wood'), t('element_fire'), t('element_earth'), t('element_metal'), t('element_water')];
   const colors = ['#4ade80', '#fb923c', '#fbbf24', '#e2e8f0', '#60a5fa'];
   return (
     <text x={x} y={y} textAnchor="middle" dominantBaseline="central"
@@ -67,11 +68,11 @@ function KoreanBorder({ children, color = 'rgba(201,169,110,0.18)' }: {
 export function FullScript() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { identity, userInput, shareCode } = useUser();
+  const { identity, userInput, shareCode, isPaid } = useUser();
   const [narrative, setNarrative] = useState<any>(null);
 
   useEffect(() => {
-    if (!identity) { navigate('/registry'); return; }
+    if (!identity || !isPaid) { navigate('/registry'); return; }
 
     // Fetch narrative content asynchronously
     const fetchNarrative = async () => {
