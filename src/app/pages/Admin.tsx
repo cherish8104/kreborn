@@ -150,6 +150,17 @@ export function Admin() {
                 setGa4Fetching(false);
                 return;
             }
+            // 개별 리포트에 에러가 포함된 경우 감지 (GA4 API 403 등)
+            const reportKeys = ['funnel', 'daily', 'dailyTraffic', 'newVsReturning', 'landing', 'channel', 'sourceMedium', 'country', 'device'];
+            const reportErrors = reportKeys.filter(k => data?.[k]?.error);
+            if (reportErrors.length > 0) {
+                const firstErr = data[reportErrors[0]].error;
+                const errMsg = firstErr?.message ?? JSON.stringify(firstErr);
+                console.error('[GA4] per-report errors:', reportErrors, firstErr);
+                setGa4(prev => ({ ...prev, loaded: true, error: `GA4 API 에러: ${errMsg}` }));
+                setGa4Fetching(false);
+                return;
+            }
             // 퍼널 이벤트 카운트 파싱
             const funnel: Record<string, number> = {};
             for (const row of data.funnel?.rows ?? []) {

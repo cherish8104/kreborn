@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams } from 'react-router';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { getUserByShareCode } from '../../lib/contentApi';
@@ -36,20 +36,22 @@ function SectionTitle({ title, titleKr, emoji }: { title: string; titleKr: strin
   );
 }
 
-const CustomRadarTick = (props: { x?: number; y?: number; index?: number }) => {
-  const { x = 0, y = 0, index = 0 } = props;
-  const labels = ['木 목', '火 화', '土 토', '金 금', '水 수'];
+function makeRadarTick(t: (key: string) => string) {
+  const labels = [t('element_wood'), t('element_fire'), t('element_earth'), t('element_metal'), t('element_water')];
   const colors = ['#4ade80', '#fb923c', '#fbbf24', '#e2e8f0', '#60a5fa'];
-  return (
-    <text x={x} y={y} textAnchor="middle" dominantBaseline="central"
-      style={{
-        fontFamily: "'Cormorant Garamond', serif", fontSize: 13,
-        fill: colors[index], fontWeight: 500
-      }}>
-      {labels[index]}
-    </text>
-  );
-};
+  return (props: { x?: number; y?: number; index?: number }) => {
+    const { x = 0, y = 0, index = 0 } = props;
+    return (
+      <text x={x} y={y} textAnchor="middle" dominantBaseline="central"
+        style={{
+          fontFamily: "'Cormorant Garamond', serif", fontSize: 13,
+          fill: colors[index], fontWeight: 500
+        }}>
+        {labels[index]}
+      </text>
+    );
+  };
+}
 
 function KoreanBorder({ children, color = 'rgba(201,169,110,0.18)' }: {
   children: React.ReactNode; color?: string;
@@ -64,9 +66,8 @@ function KoreanBorder({ children, color = 'rgba(201,169,110,0.18)' }: {
 }
 
 export function SharedResult() {
-  const navigate = useNavigate();
   const { code } = useParams<{ code: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [data, setData] = useState<any>(null);
   const [narrative, setNarrative] = useState<any>(null);
@@ -83,7 +84,7 @@ export function SharedResult() {
         setData(result);
         if (result.identity_data && result.identity_data.saju) {
           try {
-            const narr = await getNarrative(result.identity_data.saju);
+            const narr = await getNarrative(result.identity_data.saju, i18n.language);
             setNarrative(narr);
           } catch (err) {
             console.error(err);
@@ -92,7 +93,7 @@ export function SharedResult() {
         setLoading(false);
       }
     });
-  }, [code]);
+  }, [code, i18n.language]);
 
   if (loading) {
     return (
@@ -408,7 +409,7 @@ export function SharedResult() {
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={elementRadar} margin={{ top: 16, right: 22, bottom: 16, left: 22 }}>
                     <PolarGrid stroke="rgba(201,169,110,0.1)" />
-                    <PolarAngleAxis dataKey="element" tick={CustomRadarTick as any} />
+                    <PolarAngleAxis dataKey="element" tick={makeRadarTick(t) as any} />
                     <Radar name="Element" dataKey="value" stroke="#c9a96e"
                       fill="#c9a96e" fillOpacity={0.1} strokeWidth={1.5} />
                   </RadarChart>
@@ -696,25 +697,47 @@ export function SharedResult() {
             </KoreanBorder>
           </motion.div>
 
-          {/* ── CTA / Back to Home ──────────────────────────────────────── */}
+          {/* ── Share & Save ──────────────────────────────────────── */}
           <motion.div className="text-center pt-8 mb-8"
             initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
-            <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#c9a96e', marginBottom: 16, lineHeight: 1.6 }}>
-              {t('sr_ask_identity', '이름과 사주를 알아보겠습니까?')}
+            <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#5a4e44', marginBottom: 16, lineHeight: 1.8 }}>
+              {t('sr_save_link_notice', '이 링크는 나만의 고유 결과 페이지입니다.\n즐겨찾기에 저장하거나 링크를 복사해두세요.')}
             </p>
-            <button onClick={() => navigate('/')} style={{
-              display: 'inline-block',
-              padding: '16px 32px', cursor: 'pointer',
-              fontFamily: 'Pretendard, sans-serif',
-              fontSize: '14px', letterSpacing: '0.1em',
-              color: '#0a0a0a', fontWeight: 500,
-              background: 'linear-gradient(135deg, #c9a96e, #a07840)',
-              border: 'none', borderRadius: '30px',
-              textDecoration: 'none',
-              boxShadow: '0 4px 20px rgba(201,169,110,0.2)'
-            }}>
-              {t('sr_discover_identity', '나의 정체성 알아보기 🇰🇷')}
-            </button>
+            <div className="flex justify-center gap-3 flex-wrap">
+              <button onClick={() => {
+                if (navigator.share) {
+                  navigator.share({ title: 'K·REBORN', text: t('sr_share_text', '나의 K·REBORN 정체성 결과를 확인해보세요!'), url: window.location.href }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(window.location.href);
+                  const btn = document.getElementById('share-native-btn');
+                  if (btn) { btn.textContent = t('sr_copied', '복사 완료!'); setTimeout(() => { btn.textContent = t('sr_share_result_btn', '내 결과 공유하기'); }, 2000); }
+                }
+              }} id="share-native-btn" style={{
+                padding: '16px 32px', cursor: 'pointer',
+                fontFamily: 'Pretendard, sans-serif',
+                fontSize: '14px', letterSpacing: '0.1em',
+                color: '#0a0a0a', fontWeight: 500,
+                background: 'linear-gradient(135deg, #c9a96e, #a07840)',
+                border: 'none', borderRadius: '30px',
+                boxShadow: '0 4px 20px rgba(201,169,110,0.2)'
+              }}>
+                {t('sr_share_result_btn', '내 결과 공유하기')}
+              </button>
+              <button onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                const btn = document.getElementById('share-copied-btn');
+                if (btn) { btn.textContent = t('sr_copied', '복사 완료!'); setTimeout(() => { btn.textContent = t('sr_copy_link_btn', '링크 복사'); }, 2000); }
+              }} id="share-copied-btn" style={{
+                padding: '16px 32px', cursor: 'pointer',
+                fontFamily: 'Pretendard, sans-serif',
+                fontSize: '14px', letterSpacing: '0.1em',
+                color: '#c9a96e', fontWeight: 500,
+                background: 'transparent',
+                border: '1px solid rgba(201,169,110,0.4)', borderRadius: '30px',
+              }}>
+                {t('sr_copy_link_btn', '링크 복사')}
+              </button>
+            </div>
           </motion.div>
 
           {/* ── Footer ──────────────────────────────────────── */}

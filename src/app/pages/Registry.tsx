@@ -178,7 +178,7 @@ export function Registry() {
 
   const STEP_META = useMemo(() => [
     { icon: '名', ko: t('step0_ko', '이름을 알려주세요'), en: t('step0_en', 'Your full name, in English') },
-    { icon: '年', ko: t('step1_ko', '태어난 해는?'), en: t('step1_en', 'Birth year  ·  1920 – 2010') },
+    { icon: '年', ko: t('step1_ko', '태어난 해는?'), en: t('step1_en', 'Birth year') },
     { icon: '月', ko: t('step2_ko', '태어난 달은?'), en: t('step2_en', 'Birth month') },
     { icon: '日', ko: t('step3_ko', '태어난 날은?'), en: t('step3_en', 'Birth day  ·  1 – 31') },
     { icon: '時', ko: t('step4_ko', '태어난 시각은?'), en: t('step4_en', 'Birth hour  ·  12 시진(時辰)') },
@@ -196,7 +196,7 @@ export function Registry() {
 
   const liveSaju = useMemo(() => {
     const y = parseInt(form.birthYear), m = parseInt(form.birthMonth), d = parseInt(form.birthDay);
-    if (!y || y < 1920 || y > 2010) return null;
+    if (!y || y < 1900 || y > 2100) return null;
     try { return calculateSaju(y, m || 6, d || 15, form.birthHour); } catch { return null; }
   }, [form.birthYear, form.birthMonth, form.birthDay, form.birthHour]);
 
@@ -207,7 +207,7 @@ export function Registry() {
   const validate = (): boolean => {
     const msgs: Record<number, () => string | null> = {
       0: () => !form.name.trim() ? t('err_name', '이름을 입력해주세요') : null,
-      1: () => { const y = parseInt(form.birthYear); return (!y || y < 1920 || y > 2010) ? t('err_year', '1920–2010 사이의 연도') : null; },
+      1: () => { const y = parseInt(form.birthYear); return (!y || y < 1900 || y > 2100) ? t('err_year', '올바른 연도를 입력해주세요') : null; },
       2: () => !form.birthMonth ? t('err_month', '월을 선택해주세요') : null,
       3: () => { const d = parseInt(form.birthDay); return (!d || d < 1 || d > 31) ? t('err_day', '1–31 사이의 날짜') : null; },
       4: () => null,
@@ -223,7 +223,7 @@ export function Registry() {
   const isNextEnabled = (): boolean => {
     switch (step) {
       case 0: return form.name.trim().length > 0;
-      case 1: { const y = parseInt(form.birthYear); return y >= 1920 && y <= 2010; }
+      case 1: { const y = parseInt(form.birthYear); return y >= 1900 && y <= 2100; }
       case 2: return !!form.birthMonth;
       case 3: { const d = parseInt(form.birthDay); return d >= 1 && d <= 31; }
       case 4: return true;

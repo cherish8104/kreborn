@@ -147,7 +147,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
               {userInput.nationality.toUpperCase()}
             </p>
             <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '7px', color: '#2a2018' }}>
-              → 대한민국
+              → {t('sr_korea')}
             </p>
           </div>
         </div>
@@ -161,7 +161,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
         <p style={{
           fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: '#3a3028',
           letterSpacing: '0.18em', marginBottom: 8
-        }}>평행우주의 당신</p>
+        }}>{t('rc_parallel_you')}</p>
 
         <motion.h1
           style={{
@@ -190,7 +190,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
             color: elLabel.color, background: `${elLabel.color}12`,
             padding: '3px 10px', letterSpacing: '0.1em'
           }}>
-            {elLabel.char} {elLabel.kr} · 이름의 기운
+            {elLabel.char} {elLabel.kr} · {t('rc_name_energy')}
           </span>
         </motion.div>
       </motion.div>
@@ -217,7 +217,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
           <p style={{
             fontFamily: 'Pretendard, sans-serif', fontSize: '7px',
             color: '#2a2018', letterSpacing: '0.15em', marginBottom: 3
-          }}>CAREER</p>
+          }}>{t('rc_career')}</p>
           <p style={{
             fontFamily: "'Cormorant Garamond', serif", fontSize: '16px',
             fontWeight: 300, color: '#c9a96e', fontStyle: 'italic'
@@ -233,7 +233,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
           <p style={{
             fontFamily: 'Pretendard, sans-serif', fontSize: '7px',
             color: '#2a2018', letterSpacing: '0.15em', marginBottom: 3
-          }}>DOMINANT</p>
+          }}>{t('rc_dominant')}</p>
           <p style={{
             fontFamily: "'Cormorant Garamond', serif", fontSize: '22px',
             color: domLabel.color, lineHeight: 1.1
@@ -357,7 +357,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
             <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>{t('rc_soulmate', '운명의 짝 · SOULMATE')}</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_soulmate_info', '운명의 짝 정보 확인')}>
+          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_soulmate')}>
             <div style={{ padding: '2px 0' }}>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '13px', color: '#f5f0e8', marginBottom: 4 }}>{t('rc_parallel_partner', '당신의 평행우주 파트너')}</p>
               <div className="flex items-center justify-between">
@@ -374,7 +374,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
                   <div className="w-12 h-12 flex items-center justify-center" style={{ border: '1px solid rgba(201,169,110,0.3)', background: 'rgba(201,169,110,0.07)' }}>
                     <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: '#c9a96e', fontWeight: 400 }}>{soulmate.compatibilityScore}</span>
                   </div>
-                  <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '7px', color: '#8a7255', marginTop: 3 }}>COMPAT.</p>
+                  <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '7px', color: '#8a7255', marginTop: 3 }}>{t('rc_compat')}</p>
                 </div>
               </div>
             </div>
@@ -385,10 +385,10 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
       <div className="px-5 pb-5">
         <div className="p-4" style={{ border: '1px solid rgba(201,169,110,0.14)', background: 'rgba(255,255,255,0.01)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>{t('rc_seoul_scenario', '서울 동네 시나리오 · LUCKY SPOT')}</span>
+            <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: '#c9a96e', letterSpacing: '0.18em' }}>{t('rc_lucky_spot')}</span>
             <div className="h-px flex-1" style={{ background: 'rgba(201,169,110,0.1)' }} />
           </div>
-          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_lucky_spot', '행운의 동네 시나리오 공개')}>
+          <LockedSlot locked={locked} onUnlock={onUnlock} label={t('rc_unlock_spot')}>
             <div style={{ padding: '2px 0' }}>
               <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 300, color: '#4ade80', lineHeight: 1.15, marginBottom: 4 }}>{neighborhood.name}</p>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#bba689', marginTop: 2 }}>{neighborhood.nameKr}</p>

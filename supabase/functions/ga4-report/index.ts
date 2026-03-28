@@ -76,6 +76,14 @@ async function ga4Report(propertyId: string, token: string, body: object) {
       body: JSON.stringify(body),
     },
   );
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const errJson = await res.json();
+      msg = `[${errJson.error?.status ?? res.status}] ${errJson.error?.message ?? JSON.stringify(errJson)}`;
+    } catch { /* body wasn't JSON */ }
+    throw new Error(msg);
+  }
   const json = await res.json();
   if (json.error) {
     throw new Error(`[${json.error.status ?? res.status}] ${json.error.message}`);
@@ -92,6 +100,14 @@ async function ga4CohortReport(propertyId: string, token: string, body: object) 
       body: JSON.stringify(body),
     },
   );
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const errJson = await res.json();
+      msg = `cohort: [${errJson.error?.status ?? res.status}] ${errJson.error?.message ?? JSON.stringify(errJson)}`;
+    } catch { /* body wasn't JSON */ }
+    throw new Error(msg);
+  }
   const json = await res.json();
   if (json.error) {
     throw new Error(`cohort: [${json.error.status ?? res.status}] ${json.error.message}`);

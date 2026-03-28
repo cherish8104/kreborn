@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 
 interface ExportActionsProps {
     targetId: string;
@@ -9,6 +10,7 @@ interface ExportActionsProps {
 }
 
 export function ExportActions({ userName, shareCode }: ExportActionsProps) {
+    const { t } = useTranslation();
     const [isCopying, setIsCopying] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
 
@@ -21,7 +23,7 @@ export function ExportActions({ userName, shareCode }: ExportActionsProps) {
         try {
             await navigator.clipboard.writeText(shareUrl);
         } catch {
-            alert('링크 복사에 실패했습니다. 다시 시도해주세요.');
+            alert(t('export_copy_fail'));
         } finally {
             setTimeout(() => setIsCopying(false), 2000);
         }
@@ -32,13 +34,13 @@ export function ExportActions({ userName, shareCode }: ExportActionsProps) {
         try {
             if (navigator.share) {
                 await navigator.share({
-                    title: `${userName}의 K-REBORN 정체성`,
-                    text: '나의 한국 평행우주 정체성을 확인해봐! 사주로 만든 한국 이름이야 🇰🇷',
+                    title: t('export_share_title', { name: userName }),
+                    text: t('export_share_text'),
                     url: shareUrl,
                 });
             } else {
                 await navigator.clipboard.writeText(shareUrl);
-                alert('링크가 복사됐어요! 친구에게 공유해보세요 🔗');
+                alert(t('export_copy_success'));
             }
         } catch (err: any) {
             if (err?.name !== 'AbortError') {
@@ -53,7 +55,7 @@ export function ExportActions({ userName, shareCode }: ExportActionsProps) {
         <div className="flex flex-col gap-3 mt-8 p-4 rounded-lg export-actions-container"
             style={{ border: '1px solid rgba(201,169,110,0.15)', background: 'rgba(255,255,255,0.02)' }}>
             <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#8a7255', letterSpacing: '0.1em', textAlign: 'center' }}>
-                SHARE YOUR IDENTITY
+                {t('export_share_section')}
             </p>
 
             <div className="flex gap-3 mt-2">
@@ -70,7 +72,7 @@ export function ExportActions({ userName, shareCode }: ExportActionsProps) {
                         {isCopying ? '✅' : '🔗'}
                     </span>
                     <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px' }}>
-                        {isCopying ? '복사됐어요!' : 'Copy Link'}
+                        {isCopying ? t('export_copy_done') : t('export_copy_link')}
                     </span>
                 </motion.button>
 
@@ -87,7 +89,7 @@ export function ExportActions({ userName, shareCode }: ExportActionsProps) {
                         {isSharing ? '⏳' : '↗️'}
                     </span>
                     <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px' }}>
-                        친구에게 공유하기
+                        {t('export_share_btn')}
                     </span>
                 </motion.button>
             </div>

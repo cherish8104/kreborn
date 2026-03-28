@@ -37,21 +37,22 @@ function SectionTitle({ title, titleKr, emoji }: { title: string; titleKr: strin
   );
 }
 
-const CustomRadarTick = (props: { x?: number; y?: number; index?: number }) => {
-  const { x = 0, y = 0, index = 0 } = props;
-  const { t } = useTranslation();
+function makeRadarTick(t: (key: string) => string) {
   const labels = [t('element_wood'), t('element_fire'), t('element_earth'), t('element_metal'), t('element_water')];
   const colors = ['#4ade80', '#fb923c', '#fbbf24', '#e2e8f0', '#60a5fa'];
-  return (
-    <text x={x} y={y} textAnchor="middle" dominantBaseline="central"
-      style={{
-        fontFamily: "'Cormorant Garamond', serif", fontSize: 13,
-        fill: colors[index], fontWeight: 500
-      }}>
-      {labels[index]}
-    </text>
-  );
-};
+  return (props: { x?: number; y?: number; index?: number }) => {
+    const { x = 0, y = 0, index = 0 } = props;
+    return (
+      <text x={x} y={y} textAnchor="middle" dominantBaseline="central"
+        style={{
+          fontFamily: "'Cormorant Garamond', serif", fontSize: 13,
+          fill: colors[index], fontWeight: 500
+        }}>
+        {labels[index]}
+      </text>
+    );
+  };
+}
 
 function KoreanBorder({ children, color = 'rgba(201,169,110,0.18)' }: {
   children: React.ReactNode; color?: string;
@@ -66,21 +67,23 @@ function KoreanBorder({ children, color = 'rgba(201,169,110,0.18)' }: {
 }
 
 export function FullScript() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { identity, userInput, shareCode, isPaid } = useUser();
   const [narrative, setNarrative] = useState<any>(null);
 
   useEffect(() => {
-    if (!identity || !isPaid) { navigate('/registry'); return; }
+    if (!identity) { navigate('/registry'); return; }
+    // TODO: 토스페이먼츠 결제 연동 후 isPaid 가드 복원
+    // if (!isPaid) { navigate('/registry'); return; }
 
-    // Fetch narrative content asynchronously
+    // Fetch narrative content asynchronously with current language
     const fetchNarrative = async () => {
-      const data = await getNarrative(identity.saju);
+      const data = await getNarrative(identity.saju, i18n.language);
       setNarrative(data);
     };
     fetchNarrative();
-  }, [identity, navigate]);
+  }, [identity, navigate, i18n.language]);
 
   if (!identity || !userInput || !narrative) return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
@@ -365,7 +368,7 @@ export function FullScript() {
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={elementRadar} margin={{ top: 16, right: 22, bottom: 16, left: 22 }}>
                   <PolarGrid stroke="rgba(201,169,110,0.1)" />
-                  <PolarAngleAxis dataKey="element" tick={CustomRadarTick as any} />
+                  <PolarAngleAxis dataKey="element" tick={makeRadarTick(t) as any} />
                   <Radar name="Element" dataKey="value" stroke="#c9a96e"
                     fill="#c9a96e" fillOpacity={0.1} strokeWidth={1.5} />
                 </RadarChart>
