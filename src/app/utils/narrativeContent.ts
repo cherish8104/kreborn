@@ -287,11 +287,9 @@ export async function getNarrative(saju: SajuData, language: string = 'ko'): Pro
                 const queryWithLang = async (table: string, filterCol: string, filterVal: string | number) => {
                         const res = await supabase!.from(table).select('*').eq(filterCol, filterVal).eq('language', lang).single();
                         if (!res.error) return res;
-                        // Fallback: try without language filter (legacy ko rows without language column)
-                        if (lang === 'ko') {
-                                return supabase!.from(table).select('*').eq(filterCol, filterVal).single();
-                        }
-                        return res;
+                        // Fallback: try 'ko' if the requested language row is missing
+                        const fallback = await supabase!.from(table).select('*').eq(filterCol, filterVal).eq('language', 'ko').single();
+                        return fallback;
                 };
 
                 const [

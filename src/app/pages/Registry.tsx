@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useUser } from '../store/UserContext';
 import { calculateSaju, generateKoreanIdentity } from '../utils/sajuEngine';
 import { trackCompleteRegistration } from '../../lib/analytics';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
+
 import type { Pillar } from '../utils/sajuEngine';
 
 /* ─── Constants ─────────────────────────────────────────── */
@@ -553,7 +553,6 @@ export function Registry() {
           </div>
 
           <div className="flex flex-col items-end z-10">
-            <LanguageSwitcher />
           </div>
         </div>
 

@@ -195,7 +195,7 @@ export function SharedResult() {
                 fontFamily: 'Pretendard, sans-serif', fontSize: '9px',
                 color: domLabel.color, padding: '2px 9px'
               }}>
-                {domLabel.char} {domLabel.kr} {t('sr_dominant_energy', 'Dominant')}
+                {domLabel.char} {t(`el_${domLabel.kr}`, domLabel.kr)} {t('sr_dominant_energy', 'Dominant')}
               </span>
               <span style={{
                 background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
@@ -242,7 +242,7 @@ export function SharedResult() {
                   <h4 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '17px', color: '#e8dcca', fontWeight: 300, marginBottom: 8 }}>{pastData.title}</h4>
                   <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#d1c5b4', lineHeight: 1.85 }}>{pastData.narrative}</p>
                   <div className="mt-4 p-3" style={{ border: '1px solid rgba(201,169,110,0.07)', background: 'rgba(201,169,110,0.015)' }}>
-                    <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: '#8a7255', letterSpacing: '0.12em', marginBottom: 6 }}>月柱 · {youthData.keyword} ({saju.month.stem}{saju.month.branch})</p>
+                    <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: '#8a7255', letterSpacing: '0.12em', marginBottom: 6 }}>{t('sr_month_pillar_youth', '月柱 · 청춘기')} ({saju.month.stem}{saju.month.branch})</p>
                     <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#bba689', letterSpacing: '0.08em', marginBottom: 5 }}>{youthData.keyword}</p>
                     <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '15px', color: '#d1c5b4', fontWeight: 300, marginBottom: 6 }}>{youthData.title}</p>
                     <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#bba689', lineHeight: 1.8 }}>{youthData.narrative}</p>
@@ -269,8 +269,8 @@ export function SharedResult() {
                   <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#e8dcca', lineHeight: 1.85, marginBottom: 10 }}>{identity.personality}</p>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { label: t('sr_dominant_energy', '주도 기운'), val: `${domLabel.char} ${domLabel.kr}`, color: domLabel.color },
-                      { label: t('sr_supplementary_energy', '보충 기운'), val: `${elLabel.char} ${elLabel.kr}`, color: elLabel.color },
+                      { label: t('sr_dominant_energy', '주도 기운'), val: `${domLabel.char} ${t(`el_${domLabel.kr}`, domLabel.kr)}`, color: domLabel.color },
+                      { label: t('sr_supplementary_energy', '보충 기운'), val: `${elLabel.char} ${t(`el_${elLabel.kr}`, elLabel.kr)}`, color: elLabel.color },
                       { label: t('sr_day_master', '일간'), val: dayMaster.hanja, color: '#c9a96e' },
                     ].map(item => (
                       <div key={item.label} className="p-2.5 text-center"
@@ -437,8 +437,8 @@ export function SharedResult() {
               </div>
               <div className="mt-4 p-3" style={{ background: 'rgba(201,169,110,0.025)', border: '1px solid rgba(201,169,110,0.08)' }}>
                 <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#d1c5b4', lineHeight: 1.8 }}>
-                  <span style={{ color: domLabel.color }}>{domLabel.char}({domLabel.kr})</span> {t('sr_dominant_saju', '기운이 우세한 사주.')}
-                  {t('sr_lacking_saju', '용신(부족한 기운)은')} <span style={{ color: elLabel.color }}>{elLabel.char}({elLabel.kr})</span>.
+                  <span style={{ color: domLabel.color }}>{domLabel.char}({t(`el_${domLabel.kr}`, domLabel.kr)})</span> {t('sr_dominant_saju', '기운이 우세한 사주.')}
+                  {t('sr_lacking_saju', '용신(부족한 기운)은')} <span style={{ color: elLabel.color }}>{elLabel.char}({t(`el_${elLabel.kr}`, elLabel.kr)})</span>.
                   {t('sr_name', '이름')} <strong style={{ color: '#c9a96e', fontFamily: "'Cormorant Garamond', serif" }}>{identity.fullName}</strong>{t('sr_name_completes', '은 이 부족한 기운을 음운학적으로 보강합니다.')}
                 </p>
               </div>
@@ -458,7 +458,7 @@ export function SharedResult() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', color: '#f5f0e8', fontWeight: 300 }}>{zodiac.kr}띠</span>
+                      <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', color: '#f5f0e8', fontWeight: 300 }}>{zodiac.kr}({zodiac.animal})</span>
                       <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', color: '#8a7255', fontWeight: 300 }}>({saju.year.branch})</span>
                     </div>
                     <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#bba689' }}>{zodiac.animal} Year</p>
@@ -510,7 +510,7 @@ export function SharedResult() {
               <div className="absolute -right-4 -bottom-4 w-24 h-24" style={{ background: `radial-gradient(circle, ${domLabel.color}15 0%, transparent 70%)` }} />
               <div className="flex flex-col gap-1 mb-4">
                 <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '10px', color: domLabel.color, letterSpacing: '0.1em' }}>
-                  {domLabel.char} {domLabel.kr} ENERGY
+                  {domLabel.char} {t(`el_${domLabel.kr}`, domLabel.kr)} ENERGY
                 </span>
                 <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 300, color: '#f5f0e8' }}>
                   {kDrama.archetype}
@@ -620,7 +620,7 @@ export function SharedResult() {
                 </div>
                 <div className="absolute top-3 right-3 px-2.5 py-1"
                   style={{ background: `${domLabel.color}18`, border: `1px solid ${domLabel.color}30` }}>
-                  <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: domLabel.color }}>{domLabel.char} {domLabel.kr}</span>
+                  <span style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: domLabel.color }}>{domLabel.char} {t(`el_${domLabel.kr}`, domLabel.kr)}</span>
                 </div>
               </div>
               <div className="p-4">
@@ -640,7 +640,7 @@ export function SharedResult() {
             <SectionTitle title="Lucky Enhancers" titleKr={t('sr_lucky_enhancers', '행운을 부르는 오행 처방')} emoji="🍀" />
             <div className="p-4" style={{ border: '1px solid rgba(201,169,110,0.13)', background: 'rgba(255,255,255,0.01)' }}>
               <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#e8dcca', lineHeight: 1.8, marginBottom: 16 }}>
-                {t('sr_you_need', '당신에게 가장 필요한')} <span style={{ color: elLabel.color }}>{elLabel.char}({elLabel.kr})</span> {t('sr_fill_energy', '기운을 일상 속에서 채우는 방법입니다.')}
+                {t('sr_you_need', '당신에게 가장 필요한')} <span style={{ color: elLabel.color }}>{elLabel.char}({t(`el_${elLabel.kr}`, elLabel.kr)})</span> {t('sr_fill_energy', '기운을 일상 속에서 채우는 방법입니다.')}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -674,12 +674,12 @@ export function SharedResult() {
                 </div>
                 <div style={{ height: 1, background: 'rgba(201,169,110,0.1)', marginBottom: 14 }} />
                 <div className="mb-4 p-3" style={{ border: `1px solid ${elLabel.color}18`, background: `${elLabel.color}05` }}>
-                  <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: elLabel.color, letterSpacing: '0.15em', marginBottom: 8 }}>{t('sr_yongsin', '용신')}({elLabel.char} {elLabel.kr}) · {t('sr_name_energy', '이름의 기운')}</p>
+                  <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '8px', color: elLabel.color, letterSpacing: '0.15em', marginBottom: 8 }}>{t('sr_yongsin', '용신')}({elLabel.char} {t(`el_${elLabel.kr}`, elLabel.kr)}) · {t('sr_name_energy', '이름의 기운')}</p>
                   <p style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '12px', color: '#e8dcca', lineHeight: 1.85 }}>{identity.nameMeaning}</p>
                 </div>
                 <div className="flex flex-col gap-2">
                   {[
-                    { num: '一', title: t('sr_element_complement', '오행 보완'), desc: `${t('sr_saju_lacking', '사주에 부족한')} ${elLabel.char}(${elLabel.kr}) ${t('sr_supplement_pronunciation', '기운을 발음 오행으로 보충')}` },
+                    { num: '一', title: t('sr_element_complement', '오행 보완'), desc: `${t('sr_saju_lacking', '사주에 부족한')} ${elLabel.char}(${t(`el_${elLabel.kr}`, elLabel.kr)}) ${t('sr_supplement_pronunciation', '기운을 발음 오행으로 보충')}` },
                     { num: '二', title: t('sr_name_strokes', '성명학 획수'), desc: t('sr_stroke_lucky', '성과 이름의 획수 조합이 대길(大吉) 수리 패턴에 부합') },
                     { num: '三', title: t('sr_yin_yang', '음양 배치'), desc: t('sr_yin_yang_balance', '음(陰)과 양(陽)이 조화롭게 배치되어 균형 잡힌 에너지 생성') },
                   ].map(item => (

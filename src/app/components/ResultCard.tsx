@@ -190,7 +190,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
             color: elLabel.color, background: `${elLabel.color}12`,
             padding: '3px 10px', letterSpacing: '0.1em'
           }}>
-            {elLabel.char} {elLabel.kr} · {t('rc_name_energy')}
+            {elLabel.char} {t(`el_${elLabel.kr}`, elLabel.kr)} · {t('rc_name_energy')}
           </span>
         </motion.div>
       </motion.div>
@@ -241,7 +241,7 @@ export function ResultCard({ identity, userInput, mode = 'full', extraPad = 0, o
           <p style={{
             fontFamily: 'Pretendard, sans-serif', fontSize: '9px',
             color: domLabel.color, opacity: 0.8
-          }}>{domLabel.kr}</p>
+          }}>{t(`el_${domLabel.kr}`, domLabel.kr)}</p>
         </div>
       </motion.div>
 
