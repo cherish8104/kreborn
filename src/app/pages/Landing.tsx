@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { motion, useScroll, useTransform } from 'motion/react';
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SEO } from '../components/SEO';
 import { trackBeginRegistration } from '../../lib/analytics';
@@ -57,6 +57,7 @@ function SectionLabel({ en, kr }: { en: string; kr: string }) {
 export function Landing() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [showTerms, setShowTerms] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll();
@@ -858,6 +859,23 @@ export function Landing() {
               ))}
             </div>
 
+            {/* 사업자 정보 */}
+            <div className="flex flex-col items-center gap-1 mb-4" style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#3a3028', lineHeight: 1.6 }}>
+              <p>상호명: 글로컬링크 · 대표: 박용진</p>
+              <p>사업자등록번호: 731-53-01128</p>
+              <p>주소: 경기도 군포시 한세로6번길 24, 2028호(산본동, 평강하우스)</p>
+              <p>연락처: 010-7376-7012</p>
+            </div>
+
+            {/* 이용약관 버튼 */}
+            <button
+              onClick={() => setShowTerms(true)}
+              className="mb-4 underline underline-offset-2"
+              style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '9px', color: '#6b5e50', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              이용약관 및 환불정책
+            </button>
+
             <div className="flex items-center justify-center gap-3">
               <div className="h-px w-10" style={{ background: 'linear-gradient(to right, transparent, rgba(201,169,110,0.25))' }} />
               <div className="flex items-center gap-1.5">
@@ -871,6 +889,94 @@ export function Landing() {
           </FadeIn>
         </div>
       </section>
+
+      {/* 이용약관 모달 */}
+      {showTerms && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setShowTerms(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div
+            className="relative w-full max-w-md max-h-[80vh] overflow-y-auto rounded-xl"
+            style={{ background: '#0e0c0a', border: '1px solid rgba(201,169,110,0.3)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 flex items-center justify-between px-5 py-4" style={{ background: '#0e0c0a', borderBottom: '1px solid rgba(201,169,110,0.15)' }}>
+              <h2 style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '14px', fontWeight: 700, color: '#c9a96e' }}>이용약관 및 환불정책</h2>
+              <button onClick={() => setShowTerms(false)} style={{ color: '#8a7d6b', fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div className="px-5 py-4 flex flex-col gap-5" style={{ fontFamily: 'Pretendard, sans-serif', fontSize: '11px', color: '#b0a594', lineHeight: 1.75 }}>
+
+              <section>
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#c9a96e', marginBottom: 6 }}>제1조 (목적)</h3>
+                <p>본 약관은 글로컬링크(이하 "회사")가 운영하는 K-REBORN 서비스(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 기타 필요한 사항을 규정함을 목적으로 합니다.</p>
+              </section>
+
+              <section>
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#c9a96e', marginBottom: 6 }}>제2조 (서비스 내용)</h3>
+                <p>서비스는 이용자의 생년월일·성별·출생시간 등 입력 정보를 기반으로 사주(四柱) 분석 결과, 한국식 이름 생성, 오행 분석, 운세 내러티브 등 디지털 엔터테인먼트 콘텐츠를 제공합니다.</p>
+                <p className="mt-1.5">본 서비스의 결과는 <strong style={{ color: '#d4c4a8' }}>오락·문화 체험 목적</strong>이며, 학술적·의학적·법률적 근거를 갖는 전문 상담이 아닙니다. 중요한 인생 결정은 반드시 관련 전문가와 상담하시기 바랍니다.</p>
+              </section>
+
+              <section>
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#c9a96e', marginBottom: 6 }}>제3조 (유료 서비스 및 결제)</h3>
+                <p>① 프리미엄 콘텐츠(Full Script)의 이용료는 <strong style={{ color: '#d4c4a8' }}>₩5,900(부가세 포함)</strong>이며, 토스페이먼츠(TossPayments) 결제를 통해 처리됩니다.</p>
+                <p className="mt-1.5">② 결제 완료 시 해당 분석 결과에 대한 열람 권한이 즉시 부여됩니다.</p>
+                <p className="mt-1.5">③ 결제 수단: 신용카드·체크카드(토스페이먼츠 지원 수단)</p>
+              </section>
+
+              <section>
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#c9a96e', marginBottom: 6 }}>제4조 (환불 정책)</h3>
+                <p>① 결제 후 <strong style={{ color: '#d4c4a8' }}>결과 콘텐츠를 열람하지 않은 경우</strong>에 한해 결제일로부터 7일 이내 전액 환불이 가능합니다.</p>
+                <p className="mt-1.5">② <strong style={{ color: '#e8c06a' }}>결과 콘텐츠를 1회라도 열람한 경우에는 디지털 콘텐츠의 특성상 환불이 불가합니다.</strong> 이는 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조 제2항 제5호에 따른 것으로, 결제 시 이에 동의한 것으로 간주합니다.</p>
+                <p className="mt-1.5">③ 환불 요청: 010-7376-7012 또는 서비스 내 문의를 통해 접수할 수 있습니다.</p>
+              </section>
+
+              <section>
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#c9a96e', marginBottom: 6 }}>제5조 (개인정보 수집 및 이용)</h3>
+                <p>① 회사는 서비스 제공을 위해 다음 개인정보를 수집합니다:</p>
+                <ul className="mt-1.5 ml-3" style={{ listStyleType: 'disc' }}>
+                  <li>이름, 이메일, 생년월일, 출생시간, 성별, 국적</li>
+                </ul>
+                <p className="mt-1.5">② 수집된 정보는 사주 분석 및 결과 생성 목적으로만 사용되며, 제3자에게 제공하지 않습니다.</p>
+                <p className="mt-1.5">③ 이용자는 언제든지 개인정보의 삭제를 요청할 수 있으며, 회사는 요청 접수 후 지체 없이 처리합니다.</p>
+              </section>
+
+              <section>
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#c9a96e', marginBottom: 6 }}>제6조 (서비스 이용 제한)</h3>
+                <p>회사는 다음 각 호에 해당하는 경우 서비스 이용을 제한할 수 있습니다:</p>
+                <ul className="mt-1.5 ml-3 flex flex-col gap-0.5" style={{ listStyleType: 'disc' }}>
+                  <li>타인의 정보를 도용한 경우</li>
+                  <li>서비스 운영을 고의로 방해한 경우</li>
+                  <li>결과물을 상업적으로 무단 이용하는 경우</li>
+                </ul>
+              </section>
+
+              <section>
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#c9a96e', marginBottom: 6 }}>제7조 (면책 조항)</h3>
+                <p>① 본 서비스의 분석 결과는 전통 명리학 알고리즘에 기반한 엔터테인먼트 콘텐츠로, 결과의 정확성이나 실현 가능성을 보증하지 않습니다.</p>
+                <p className="mt-1.5">② 천재지변, 시스템 장애 등 불가항력으로 인한 서비스 중단에 대해 회사는 책임을 지지 않습니다.</p>
+              </section>
+
+              <section>
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#c9a96e', marginBottom: 6 }}>제8조 (분쟁 해결)</h3>
+                <p>본 약관과 관련한 분쟁은 대한민국 법률에 따르며, 회사의 소재지를 관할하는 법원을 전속 관할 법원으로 합니다.</p>
+              </section>
+
+              <section style={{ borderTop: '1px solid rgba(201,169,110,0.15)', paddingTop: 12 }}>
+                <p style={{ fontSize: '10px', color: '#6b5e50' }}>
+                  사업자: 글로컬링크 · 대표: 박용진 · 사업자등록번호: 731-53-01128<br />
+                  주소: 경기도 군포시 한세로6번길 24, 2028호(산본동, 평강하우스)<br />
+                  연락처: 010-7376-7012 · PG사: 토스페이먼츠(주)<br />
+                  시행일: 2025년 6월 2일
+                </p>
+              </section>
+
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
